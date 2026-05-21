@@ -152,3 +152,20 @@ User instructed to add `MarkdownView.swift` to Xcode project, then build.
 **Math rendering broken:** All other markdown rendered correctly but math was blank. Root cause: `markdown-it` was configured with `html: false`, which caused it to escape the HTML that KaTeX generates during the pre-processing step. Fix: changed `html: false` to `html: true` in `render-template.html` markdown-it config. Math now renders correctly.
 
 **Final state:** App renders full markdown (headings, tables, task lists, code blocks with syntax highlighting, inline and block math) in tabs, with correct window titles, no "New" menu item, and right-click "Open With" available in Finder.
+
+---
+
+## Interaction 10 — Three polish tweaks
+
+**Auto-refresh on file change:**
+- New `FileWatcher.swift` — wraps `DispatchSource.makeFileSystemObjectSource` watching `.write`, `.rename`, `.delete` events
+- Handles editors (vim, etc.) that save via rename by cancelling and restarting the watcher on the new inode
+- 50ms read delay ensures write is fully flushed before content is read
+- `ContentView.swift` updated to accept `fileURL: URL?`, owns a `@State var watcher: FileWatcher?`, initializes text from document on appear and starts watcher; cleans up on disappear
+- `mdviewApp.swift` updated to pass `config.fileURL` to ContentView
+
+**Top padding reduced:**
+- `render-template.html` — `#content` top padding changed from `32px` to `16px`
+
+**About panel icon:**
+- Added `CommandGroup(replacing: .appInfo)` in `mdviewApp.swift` that calls `NSApp.orderFrontStandardAboutPanel` with explicit `.applicationIcon` key to ensure the custom teal icon appears
