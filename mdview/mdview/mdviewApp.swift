@@ -2,13 +2,16 @@ import SwiftUI
 import AppKit
 
 extension Notification.Name {
-    static let mdviewOpenFind            = Notification.Name("mdviewOpenFind")
-    static let mdviewToggleLineNumbers   = Notification.Name("mdviewToggleLineNumbers")
-    static let mdviewShowCSS             = Notification.Name("mdviewShowCSS")
-    static let mdviewToggleJumpToNew     = Notification.Name("mdviewToggleJumpToNew")
-    static let mdviewToggleTail          = Notification.Name("mdviewToggleTail")
-    static let mdviewToggleOutline       = Notification.Name("mdviewToggleOutline")
+    static let mdviewOpenFind              = Notification.Name("mdviewOpenFind")
+    static let mdviewToggleLineNumbers     = Notification.Name("mdviewToggleLineNumbers")
+    static let mdviewShowCSS               = Notification.Name("mdviewShowCSS")
+    static let mdviewToggleJumpToNew       = Notification.Name("mdviewToggleJumpToNew")
+    static let mdviewToggleTail            = Notification.Name("mdviewToggleTail")
+    static let mdviewToggleOutline         = Notification.Name("mdviewToggleOutline")
     static let mdviewShowKeyboardShortcuts = Notification.Name("mdviewShowKeyboardShortcuts")
+    static let mdviewZoomIn                = Notification.Name("mdviewZoomIn")
+    static let mdviewZoomOut               = Notification.Name("mdviewZoomOut")
+    static let mdviewResetZoom             = Notification.Name("mdviewResetZoom")
 }
 
 @main
@@ -71,6 +74,25 @@ struct mdviewApp: App {
                     NotificationCenter.default.post(name: .mdviewShowCSS, object: nil)
                 }
                 .keyboardShortcut("c", modifiers: [.command, .shift])
+
+                Divider()
+
+                Divider()
+
+                Button("Zoom In") {
+                    NotificationCenter.default.post(name: .mdviewZoomIn, object: nil)
+                }
+                .keyboardShortcut("+", modifiers: .command)
+
+                Button("Zoom Out") {
+                    NotificationCenter.default.post(name: .mdviewZoomOut, object: nil)
+                }
+                .keyboardShortcut("-", modifiers: .command)
+
+                Button("Actual Size") {
+                    NotificationCenter.default.post(name: .mdviewResetZoom, object: nil)
+                }
+                .keyboardShortcut("0", modifiers: .command)
 
                 Divider()
 

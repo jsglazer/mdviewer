@@ -87,6 +87,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mdviewShowKeyboardShortcuts)) { _ in
             ShortcutsPanelController.shared.show()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomIn))    { _ in markdownController.zoomIn() }
+        .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomOut))   { _ in markdownController.zoomOut() }
+        .onReceive(NotificationCenter.default.publisher(for: .mdviewResetZoom)) { _ in markdownController.resetZoom() }
     }
 
     // MARK: - Ribbon

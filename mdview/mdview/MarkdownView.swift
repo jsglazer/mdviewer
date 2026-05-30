@@ -68,6 +68,9 @@ final class MarkdownController {
     func getDocumentCSS(completion: @escaping (String) -> Void) {
         coordinator?.doGetDocumentCSS(completion: completion)
     }
+    func zoomIn()    { coordinator?.doZoomIn() }
+    func zoomOut()   { coordinator?.doZoomOut() }
+    func resetZoom() { coordinator?.doResetZoom() }
 }
 
 // Avoids a WKUserContentController → Coordinator retain cycle.
@@ -266,6 +269,10 @@ struct MarkdownView: NSViewRepresentable {
                 DispatchQueue.main.async { completion(css) }
             }
         }
+
+        func doZoomIn()    { webView?.pageZoom = min((webView?.pageZoom ?? 1.0) * 1.1, 5.0) }
+        func doZoomOut()   { webView?.pageZoom = max((webView?.pageZoom ?? 1.0) / 1.1, 0.2) }
+        func doResetZoom() { webView?.pageZoom = 1.0 }
 
         private static func firstDivergingLine(old: String, new: String) -> Int {
             let oldLines = old.components(separatedBy: "\n")

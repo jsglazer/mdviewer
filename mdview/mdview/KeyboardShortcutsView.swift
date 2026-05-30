@@ -27,6 +27,9 @@ struct KeyboardShortcutsView: View {
             Row(key: "⌘ ⇧ L", desc: "Toggle Line Numbers"),
             Row(key: "⌘ ⇧ O", desc: "Toggle Outline panel"),
             Row(key: "⌘ ⇧ C", desc: "Show Document CSS"),
+            Row(key: "⌘ +",   desc: "Zoom In"),
+            Row(key: "⌘ −",   desc: "Zoom Out"),
+            Row(key: "⌘ 0",   desc: "Actual Size"),
             Row(key: "⌘ ⇧ K", desc: "Keyboard Shortcuts (this window)"),
         ]),
         Section(title: "Find", rows: [
