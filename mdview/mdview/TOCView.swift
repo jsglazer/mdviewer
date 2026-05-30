@@ -2,10 +2,15 @@ import SwiftUI
 
 struct TOCView: View {
     let items: [TOCItem]
-    var activeIDs: Set<String> = []
+    var activeChain: [String] = []   // [0] = current (deepest), last = root ancestor
     let onSelect: (String) -> Void
 
     @State private var collapsed: Set<String> = []
+
+    // Deepest heading in the chain — highlighted green
+    private var currentID: String? { activeChain.first }
+    // Topmost ancestor — highlighted blue (only when the chain has more than one entry)
+    private var rootID: String? { activeChain.count > 1 ? activeChain.last : nil }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,20 +23,31 @@ struct TOCView: View {
                     .foregroundStyle(.tertiary)
                 Spacer()
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(visibleItems) { item in
-                            TOCRow(
-                                item: item,
-                                isCollapsed: collapsed.contains(item.id),
-                                isCollapsible: hasChildren(item),
-                                isActive: activeIDs.contains(item.id),
-                                onToggle: { toggleCollapse(item) },
-                                onSelect: { onSelect(item.id) }
-                            )
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(visibleItems) { item in
+                                TOCRow(
+                                    item: item,
+                                    isCollapsed: collapsed.contains(item.id),
+                                    isCollapsible: hasChildren(item),
+                                    isCurrent: item.id == currentID,
+                                    isRoot: item.id == rootID,
+                                    onToggle: { toggleCollapse(item) },
+                                    onSelect: { onSelect(item.id) }
+                                )
+                                .id(item.id)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .onChange(of: activeChain) { _, chain in
+                        if let id = chain.first {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                proxy.scrollTo(id, anchor: .center)
+                            }
                         }
                     }
-                    .padding(.vertical, 4)
                 }
             }
         }
@@ -101,17 +117,25 @@ struct TOCView: View {
     }
 }
 
-private let tocActiveColor = Color(red: 189/255, green: 1.0, blue: 217/255)
+private let tocCurrentColor = Color(red: 189/255, green: 1.0,   blue: 217/255) // #bdffd9
+private let tocRootColor    = Color(red:  80/255, green: 190/255, blue: 230/255) // #50bee6
 
 private struct TOCRow: View {
     let item: TOCItem
     let isCollapsed: Bool
     let isCollapsible: Bool
-    let isActive: Bool
+    let isCurrent: Bool
+    let isRoot: Bool
     let onToggle: () -> Void
     let onSelect: () -> Void
 
     private var indent: CGFloat { CGFloat((item.level - 1) * 12) }
+
+    private var rowBackground: Color {
+        if isCurrent { return tocCurrentColor }
+        if isRoot    { return tocRootColor }
+        return Color.clear
+    }
 
     var body: some View {
         HStack(spacing: 2) {
@@ -140,7 +164,7 @@ private struct TOCRow: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .background(isActive ? tocActiveColor : Color.clear)
+        .background(rowBackground)
         .contentShape(Rectangle())
     }
 }

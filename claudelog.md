@@ -559,6 +559,7 @@ When the find bar is open and a search query is active, pressing up/down arrows 
 - Added `_getActiveHeadingIds(referenceEl)`: finds the nearest heading preceding a DOM element (or scroll position when `null`) and collects all ancestor headings up the level hierarchy
 - Added debounced scroll listener (80 ms) that posts heading IDs to Swift via `window.webkit.messageHandlers.activeHeadings`
 - `scrollToMatch` now calls `_postActiveHeadings(el)` immediately using DOM position (not scroll position) so the TOC updates instantly
+- Active-heading detection now uses viewport vertical center (`window.innerHeight / 2`) instead of a fixed 10 px threshold
 - `setMarkdown` triggers `_scheduleHeadingNotify()` after each render
 
 **`MarkdownView.swift`**
@@ -573,7 +574,21 @@ When the find bar is open and a search query is active, pressing up/down arrows 
 
 **`TOCView.swift`**
 - Added `activeIDs: Set<String>` parameter to `TOCView`
-- `TOCRow` gains `isActive: Bool`; active rows get `#bdffd9` background (`Color(red:189/255, green:1.0, blue:217/255)`)
+- `TOCRow` gains `isCurrent` and `isRoot`; current → `#bdffd9`, root → `#50bee6`, intermediates unlit
+
+## Interaction 5 — Find focus fix, TOC auto-scroll, viewport-center detection, two-tone hierarchy (v1.0.19)
+
+**`ContentView.swift`**
+- `FindResultsView` callback now also sets `findFocused = true` so up/down keep navigating after a sidebar click
+- `activeHeadingIDs: Set<String>` replaced by `activeHeadingChain: [String]` (ordered current → root)
+
+**`render-template.html`**
+- Scroll-position heading detection uses `window.innerHeight / 2` (viewport center) instead of a fixed 10 px threshold
+
+**`TOCView.swift`**
+- Parameter changed to `activeChain: [String]`; derives `currentID` (chain[0]) and `rootID` (chain.last, only when chain.count > 1)
+- `ScrollViewReader` added; `onChange(of: activeChain)` scrolls to `currentID` with animation
+- `TOCRow` uses `isCurrent` / `isRoot` flags: current = `#bdffd9`, root = `#50bee6`, intermediates = unlit
 
 ## Interaction 2 — Cyan highlight for selected result (sidebar only)
 

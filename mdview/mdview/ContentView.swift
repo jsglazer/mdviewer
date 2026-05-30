@@ -15,7 +15,7 @@ struct ContentView: View {
     @State private var findResults: [FindResult] = []
     @State private var currentFindIndex: Int? = nil
     @State private var tocItems: [TOCItem] = []
-    @State private var activeHeadingIDs: Set<String> = []
+    @State private var activeHeadingChain: [String] = []
     @State private var markdownController = MarkdownController()
     @FocusState private var findFocused: Bool
 
@@ -24,7 +24,10 @@ struct ContentView: View {
             ribbonBar
             HStack(spacing: 0) {
                 if showFind {
-                    FindResultsView(results: findResults, selectedIndex: $currentFindIndex) { markdownController.scrollToMatch($0) }
+                    FindResultsView(results: findResults, selectedIndex: $currentFindIndex) {
+                        markdownController.scrollToMatch($0)
+                        findFocused = true
+                    }
                         .frame(width: 210)
                     Divider()
                 }
@@ -35,11 +38,11 @@ struct ContentView: View {
                     customCSS: customCSS,
                     showLineNumbers: showLineNumbers,
                     onHeadingsUpdated: { tocItems = $0 },
-                    onActiveHeadingsChanged: { activeHeadingIDs = Set($0) }
+                    onActiveHeadingsChanged: { activeHeadingChain = $0 }
                 )
                 if showTOC {
                     Divider()
-                    TOCView(items: tocItems, activeIDs: activeHeadingIDs, onSelect: { markdownController.scrollToHeading(id: $0) })
+                    TOCView(items: tocItems, activeChain: activeHeadingChain, onSelect: { markdownController.scrollToHeading(id: $0) })
                         .frame(width: 220)
                 }
             }

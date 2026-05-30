@@ -326,8 +326,9 @@ function _getActiveHeadingIds(referenceEl) {
       activeIdx = i;
     }
   } else {
+    const mid = window.innerHeight / 2;
     for (let i = 0; i < headings.length; i++) {
-      if (headings[i].getBoundingClientRect().top <= 10) activeIdx = i;
+      if (headings[i].getBoundingClientRect().top <= mid) activeIdx = i;
     }
   }
 
