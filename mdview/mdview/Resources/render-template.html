@@ -38,9 +38,7 @@
     line-height: 1.6;
   }
   #content {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 16px 40px 80px;
+    padding: 16px 24px 80px;
   }
   h1, h2, h3, h4, h5, h6 {
     margin: 1.5em 0 0.5em;
@@ -98,6 +96,41 @@
   tr:nth-child(even) td { background: var(--code-bg); }
   img { max-width: 100%; }
   .katex-display { overflow-x: auto; overflow-y: hidden; }
+  mark.find-result {
+    background: rgba(255, 200, 0, 0.45);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+  mark.find-result.active {
+    background: rgba(0, 220, 220, 0.65);
+    outline: 1px solid rgba(0, 180, 180, 0.8);
+  }
+  @media (prefers-color-scheme: dark) {
+    mark.find-result { background: rgba(180, 130, 0, 0.55); }
+    mark.find-result.active { background: rgba(0, 200, 200, 0.65); outline-color: rgba(0, 180, 180, 0.9); }
+  }
+  /* Line numbers */
+  body.line-numbers #content {
+    padding-left: 4em;
+  }
+  .line-num {
+    display: inline-block;
+    min-width: 2.5em;
+    text-align: right;
+    margin-left: -3.5em;
+    margin-right: 1em;
+    color: #aaa;
+    font-size: 0.78em;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    user-select: none;
+    pointer-events: none;
+    vertical-align: top;
+    line-height: 2.05;
+  }
+  @media (prefers-color-scheme: dark) {
+    .line-num { color: #555; }
+  }
 </style>
 </head>
 <body>
@@ -133,31 +166,297 @@ md.core.ruler.after('inline', 'task-lists', function(state) {
   });
 });
 
-// KaTeX math rendering: replace $...$ and $$...$$ before markdown parsing
-function renderMath(src) {
-  // Block math $$...$$
-  src = src.replace(/\$\$([\s\S]+?)\$\$/g, function(_, tex) {
-    try {
-      return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false });
-    } catch { return _; }
+// Source map: stamp data-md-line on top-level block open/self-closing tokens
+md.core.ruler.push('source_map', function(state) {
+  state.tokens.forEach(function(tok) {
+    if (tok.map && tok.level === 0 && tok.nesting !== -1) {
+      tok.attrSet('data-md-line', String(tok.map[0]));
+    }
   });
-  // Inline math $...$
+});
+
+// Heading ID generation — reset per render
+let _headingIdCount = {};
+
+function _makeHeadingId(rawText) {
+  const base = ('h-' + rawText.toLowerCase()
+    .replace(/[^\w\s-]/g, '').trim()
+    .replace(/\s+/g, '-').slice(0, 50)) || 'heading';
+  _headingIdCount[base] = (_headingIdCount[base] || 0) + 1;
+  return _headingIdCount[base] === 1 ? base : base + '-' + _headingIdCount[base];
+}
+
+const _origHeadingOpen = md.renderer.rules.heading_open;
+md.renderer.rules.heading_open = function(tokens, idx, options, env, self) {
+  const tok = tokens[idx];
+  const inline = tokens[idx + 1];
+  const rawText = inline ? inline.content.replace(/[*_`~]+/g, '') : '';
+  tok.attrSet('id', _makeHeadingId(rawText));
+  return _origHeadingOpen
+    ? _origHeadingOpen(tokens, idx, options, env, self)
+    : self.renderToken(tokens, idx, options);
+};
+
+// KaTeX math rendering
+function renderMath(src) {
+  src = src.replace(/\$\$([\s\S]+?)\$\$/g, function(_, tex) {
+    try { return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false }); } catch { return _; }
+  });
   src = src.replace(/\$([^\n$]+?)\$/g, function(_, tex) {
-    try {
-      return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false });
-    } catch { return _; }
+    try { return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false }); } catch { return _; }
   });
   return src;
 }
 
 function render(markdown) {
+  _headingIdCount = {};
   const mathProcessed = renderMath(markdown);
   document.getElementById('content').innerHTML = md.render(mathProcessed);
 }
 
-// Called from Swift via evaluateJavaScript
+// ── Line numbers ────────────────────────────────────────────────────────────
+let _lineNumbers = false;
+
+function _applyLineNumbers() {
+  if (_lineNumbers) {
+    document.body.classList.add('line-numbers');
+    document.querySelectorAll('#content [data-md-line]').forEach(function(el) {
+      if (el.querySelector(':scope > .line-num')) return;
+      var span = document.createElement('span');
+      span.className = 'line-num';
+      span.setAttribute('aria-hidden', 'true');
+      span.textContent = el.getAttribute('data-md-line');
+      el.insertBefore(span, el.firstChild);
+    });
+  } else {
+    document.body.classList.remove('line-numbers');
+    document.querySelectorAll('.line-num').forEach(function(el) { el.remove(); });
+  }
+}
+
+window.setLineNumbers = function(enabled) {
+  _lineNumbers = enabled;
+  _applyLineNumbers();
+};
+
+// Returns inline stylesheet rules only (the template styles + any user CSS).
+// External sheets (highlight.js, katex) are skipped — too large to be useful.
+window.getDocumentCSS = function() {
+  var parts = [];
+  try {
+    Array.from(document.styleSheets).forEach(function(sheet) {
+      if (sheet.href) return;
+      try {
+        Array.from(sheet.cssRules || []).forEach(function(rule) {
+          parts.push(rule.cssText);
+        });
+      } catch(e) {}
+    });
+  } catch(e) {}
+  return parts.join('\n\n');
+};
+
+// Called from Swift
 window.setMarkdown = function(markdown) {
   render(markdown);
+  _applyLineNumbers();
+  _scheduleHeadingNotify();
+};
+
+// Return JSON array of {level, text, id} for h1-h5 headings
+window.getHeadings = function() {
+  const items = [];
+  document.querySelectorAll('#content h1,#content h2,#content h3,#content h4,#content h5').forEach(function(el) {
+    items.push({ level: parseInt(el.tagName[1], 10), text: el.textContent.trim(), id: el.id });
+  });
+  return JSON.stringify(items);
+};
+
+// Scroll to first block element at or after the given 0-based source line
+window.scrollToNewContent = function(line) {
+  const all = Array.from(document.querySelectorAll('[data-md-line]'));
+  let target = null;
+  for (let i = 0; i < all.length; i++) {
+    if (parseInt(all[i].getAttribute('data-md-line'), 10) >= line) { target = all[i]; break; }
+  }
+  if (!target && all.length > 0) target = all[all.length - 1];
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+// Scroll so the last block element is centred in the viewport
+window.scrollToBottom = function() {
+  const content = document.getElementById('content');
+  const last = content ? content.lastElementChild : null;
+  if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+};
+
+// Scroll a heading into view by its id attribute
+window.scrollToHeading = function(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+// Keyboard navigation helpers (called from Swift key handlers)
+window.scrollToTop = function() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+window.scrollToEnd = function() {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+};
+window.scrollPageUp = function() {
+  window.scrollBy({ top: -window.innerHeight * 0.9, behavior: 'smooth' });
+};
+window.scrollPageDown = function() {
+  window.scrollBy({ top: window.innerHeight * 0.9, behavior: 'smooth' });
+};
+
+// ── Active heading tracking ─────────────────────────────────────────────────
+function _getActiveHeadingIds(referenceEl) {
+  const headings = Array.from(document.querySelectorAll(
+    '#content h1,#content h2,#content h3,#content h4,#content h5'
+  ));
+  if (!headings.length) return [];
+
+  let activeIdx = -1;
+  if (referenceEl) {
+    for (let i = 0; i < headings.length; i++) {
+      // DOCUMENT_POSITION_FOLLOWING means headings[i] comes after referenceEl → stop
+      if (referenceEl.compareDocumentPosition(headings[i]) & Node.DOCUMENT_POSITION_FOLLOWING) break;
+      activeIdx = i;
+    }
+  } else {
+    for (let i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top <= 10) activeIdx = i;
+    }
+  }
+
+  if (activeIdx < 0) return [];
+
+  const activeHeading = headings[activeIdx];
+  const activeLevel = parseInt(activeHeading.tagName[1], 10);
+  const ids = [activeHeading.id];
+
+  // Walk back to collect nearest ancestor at each level above activeLevel
+  let neededLevel = activeLevel - 1;
+  for (let i = activeIdx - 1; i >= 0 && neededLevel >= 1; i--) {
+    const level = parseInt(headings[i].tagName[1], 10);
+    if (level <= neededLevel) {
+      ids.push(headings[i].id);
+      neededLevel = level - 1;
+    }
+  }
+
+  return ids;
+}
+
+function _postActiveHeadings(referenceEl) {
+  try {
+    const ids = _getActiveHeadingIds(referenceEl);
+    window.webkit.messageHandlers.activeHeadings.postMessage(JSON.stringify(ids));
+  } catch(e) {}
+}
+
+let _headingNotifyTimer = null;
+function _scheduleHeadingNotify() {
+  if (_headingNotifyTimer) clearTimeout(_headingNotifyTimer);
+  _headingNotifyTimer = setTimeout(function() { _postActiveHeadings(null); }, 80);
+}
+window.addEventListener('scroll', _scheduleHeadingNotify, { passive: true });
+
+// ── Find / highlight ────────────────────────────────────────────────────────
+let _findMarks = [];
+let _activeMarkIndex = -1;
+
+function _clearFind() {
+  // Replace each <mark> with its plain text, then normalise adjacent text nodes
+  _findMarks.forEach(function(mark) {
+    const parent = mark.parentNode;
+    if (!parent) return;
+    parent.replaceChild(document.createTextNode(mark.textContent), mark);
+    parent.normalize();
+  });
+  _findMarks.length = 0;
+  _activeMarkIndex = -1;
+}
+
+window.clearFind = _clearFind;
+
+window.findText = function(query) {
+  _clearFind();
+  if (!query) return '[]';
+
+  const lowerQuery = query.toLowerCase();
+  const results = [];
+  let matchIndex = 0;
+
+  const content = document.getElementById('content');
+  const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, null);
+
+  // Collect all text nodes first (modifying DOM during walk breaks the iterator)
+  const textNodes = [];
+  let n;
+  while ((n = walker.nextNode())) textNodes.push(n);
+
+  for (const textNode of textNodes) {
+    const text = textNode.textContent;
+    const lower = text.toLowerCase();
+    const positions = [];
+    let pos = 0;
+    while ((pos = lower.indexOf(lowerQuery, pos)) !== -1) { positions.push(pos); pos += lowerQuery.length; }
+    if (!positions.length) continue;
+
+    const frag = document.createDocumentFragment();
+    let lastEnd = 0;
+
+    for (const start of positions) {
+      const end = start + query.length;
+      if (start > lastEnd) frag.appendChild(document.createTextNode(text.slice(lastEnd, start)));
+
+      const mark = document.createElement('mark');
+      mark.id = 'find-' + matchIndex;
+      mark.className = 'find-result';
+      mark.textContent = text.slice(start, end);
+      frag.appendChild(mark);
+      _findMarks.push(mark);
+
+      // 2-word context on each side, within this text node
+      const beforeWords = text.slice(0, start).trim().split(/\s+/).filter(Boolean).slice(-2).join(' ');
+      const afterWords  = text.slice(end).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ');
+      results.push({ index: matchIndex, before: beforeWords, match: text.slice(start, end), after: afterWords });
+      matchIndex++;
+      lastEnd = end;
+    }
+    if (lastEnd < text.length) frag.appendChild(document.createTextNode(text.slice(lastEnd)));
+    textNode.parentNode.replaceChild(frag, textNode);
+  }
+
+  return JSON.stringify(results);
+};
+
+window.scrollToMatch = function(index) {
+  if (_activeMarkIndex >= 0) {
+    const prev = document.getElementById('find-' + _activeMarkIndex);
+    if (prev) prev.classList.remove('active');
+  }
+  const el = document.getElementById('find-' + index);
+  if (el) {
+    el.classList.add('active');
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    _activeMarkIndex = index;
+    _postActiveHeadings(el);
+  }
+};
+
+// Inject or update custom user CSS in <head>
+window.setCustomCSS = function(css) {
+  let el = document.getElementById('user-css');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'user-css';
+    document.head.appendChild(el);
+  }
+  el.textContent = css;
 };
 </script>
 </body>
