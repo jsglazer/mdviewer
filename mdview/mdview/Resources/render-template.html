@@ -148,21 +148,26 @@ const md = window.markdownit({
   }
 });
 
-// Task list support
+// Task list support. markdown-it puts a hidden `paragraph_open` between
+// `list_item_open` and the `inline` token, so we look back past it. We strip only
+// the matched "[x] " prefix from the first text child (not the whole child) so the
+// rest of the label survives.
 md.core.ruler.after('inline', 'task-lists', function(state) {
   const Token = state.Token;
-  state.tokens.forEach(function(blockToken, i) {
-    if (blockToken.type !== 'inline' || !blockToken.content) return;
-    const parentToken = state.tokens[i - 1];
-    if (!parentToken || parentToken.type !== 'list_item_open') return;
-    const match = blockToken.content.match(/^\[([ xX])\] /);
+  state.tokens.forEach(function(inlineTok, i) {
+    if (inlineTok.type !== 'inline' || !inlineTok.children) return;
+    let p = i - 1;
+    if (state.tokens[p] && state.tokens[p].type === 'paragraph_open') p--;
+    if (!state.tokens[p] || state.tokens[p].type !== 'list_item_open') return;
+    const first = inlineTok.children[0];
+    if (!first || first.type !== 'text') return;
+    const match = first.content.match(/^\[([ xX])\]\s/);
     if (!match) return;
     const checked = match[1].toLowerCase() === 'x';
-    blockToken.content = blockToken.content.slice(match[0].length);
-    blockToken.children = blockToken.children ? blockToken.children.slice(1) : [];
+    first.content = first.content.slice(match[0].length);
     const checkbox = new Token('html_inline', '', 0);
     checkbox.content = '<input type="checkbox" disabled' + (checked ? ' checked' : '') + '> ';
-    blockToken.children.unshift(checkbox);
+    inlineTok.children.unshift(checkbox);
   });
 });
 
@@ -210,7 +215,11 @@ function _mathTokens(content, Token) {
   return parts;
 }
 
-md.core.ruler.after('inline', 'katex_math', function(state) {
+// Registered at the END of the core chain (push), i.e. AFTER `text_join`. The
+// inline parser splits a text run on escape sequences (`\pi`, `\frac`, …) and
+// `text_join` re-merges those fragments; running before it would leave `$…$`
+// straddling fragment boundaries, so backslash-containing math never matched.
+md.core.ruler.push('katex_math', function(state) {
   const Token = state.Token;
   state.tokens.forEach(function(blockTok) {
     if (blockTok.type !== 'inline' || !blockTok.children) return;
