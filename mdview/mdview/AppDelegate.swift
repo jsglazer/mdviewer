@@ -1,6 +1,21 @@
 import AppKit
 
+// Honours the "Show N recent files" setting. The first NSDocumentController
+// instantiated becomes the shared one, so we create this before AppKit's default.
+final class RecentLimitDocumentController: NSDocumentController {
+    override var maximumRecentDocumentCount: Int {
+        let configured = UserDefaults.standard.integer(forKey: "maxRecentFiles")
+        return configured > 0 ? configured : 10   // 0 = unset; fall back to the default
+    }
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
+    private var documentController: RecentLimitDocumentController?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        documentController = RecentLimitDocumentController()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NotificationCenter.default.addObserver(
             self,

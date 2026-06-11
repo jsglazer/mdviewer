@@ -38,6 +38,49 @@ private class MarkdownWebView: WKWebView {
     }
 }
 
+// Serves images referenced by the document via a custom scheme, streaming the
+// file from the document's directory rather than embedding base64 in the source.
+final class ImageSchemeHandler: NSObject, WKURLSchemeHandler {
+    static let scheme = "mdview-img"
+    private let baseDir: URL
+
+    init(baseDir: URL) { self.baseDir = baseDir }
+
+    static func mime(forExtension ext: String) -> String {
+        switch ext.lowercased() {
+        case "png":         return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif":         return "image/gif"
+        case "svg":         return "image/svg+xml"
+        case "webp":        return "image/webp"
+        case "bmp":         return "image/bmp"
+        case "":            return "application/octet-stream"
+        default:            return "image/\(ext.lowercased())"
+        }
+    }
+
+    func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
+        // URL form: mdview-img://local/<percent-encoded relative path>
+        guard let url = task.request.url else {
+            task.didFailWithError(URLError(.badURL)); return
+        }
+        let rawPath = url.path.hasPrefix("/") ? String(url.path.dropFirst()) : url.path
+        let relPath = rawPath.removingPercentEncoding ?? rawPath
+        let fileURL = baseDir.appendingPathComponent(relPath)
+        guard let data = try? Data(contentsOf: fileURL) else {
+            task.didFailWithError(URLError(.fileDoesNotExist)); return
+        }
+        let mime = Self.mime(forExtension: fileURL.pathExtension)
+        let response = URLResponse(url: url, mimeType: mime,
+                                   expectedContentLength: data.count, textEncodingName: nil)
+        task.didReceive(response)
+        task.didReceive(data)
+        task.didFinish()
+    }
+
+    func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
+}
+
 struct TOCItem: Identifiable, Equatable {
     let id: String
     let level: Int
@@ -88,6 +131,7 @@ struct MarkdownView: NSViewRepresentable {
     let autoScrollMode: AutoScrollMode
     let customCSS: String
     let showLineNumbers: Bool
+    var baseDir: URL? = nil
     var onHeadingsUpdated: ([TOCItem]) -> Void = { _ in }
     var onActiveHeadingsChanged: ([String]) -> Void = { _ in }
 
@@ -96,6 +140,11 @@ struct MarkdownView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.userContentController.add(WeakScriptHandler(context.coordinator), name: "activeHeadings")
+        // Serve referenced images on demand instead of base64-inlining them into
+        // the markdown (which re-encoded every file on each reload).
+        if let baseDir {
+            config.setURLSchemeHandler(ImageSchemeHandler(baseDir: baseDir), forURLScheme: ImageSchemeHandler.scheme)
+        }
         let webView = MarkdownWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         context.coordinator.webView = webView
@@ -152,6 +201,29 @@ struct MarkdownView: NSViewRepresentable {
             isLoaded = true
             render(pendingMarkdown)
             if !customCSS.isEmpty { doApplyCSS(customCSS) }
+        }
+
+        // Pin the WebView to the render template. Without this, clicking any link
+        // (or a linkified URL) navigates the view away from the template, wiping
+        // out every window.* helper and silently breaking the document.
+        func webView(_ webView: WKWebView,
+                     decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let url = navigationAction.request.url else {
+                decisionHandler(.cancel); return
+            }
+            // Allow the initial template load and image scheme requests.
+            if url.scheme == ImageSchemeHandler.scheme {
+                decisionHandler(.allow); return
+            }
+            if url.isFileURL, url.lastPathComponent == "render-template.html" {
+                decisionHandler(.allow); return
+            }
+            // Everything else (link clicks, redirects) opens in the user's browser.
+            if navigationAction.navigationType == .linkActivated || navigationAction.targetFrame == nil {
+                NSWorkspace.shared.open(url)
+            }
+            decisionHandler(.cancel)
         }
 
         func render(_ markdown: String) {

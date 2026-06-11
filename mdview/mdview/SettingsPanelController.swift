@@ -8,20 +8,14 @@ final class SettingsPanelController {
 
     func show() {
         if panel == nil {
-            let p = NSPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 480, height: 500),
-                styleMask: [.titled, .closable, .resizable],
-                backing: .buffered,
-                defer: false
+            let p = UtilityPanel.make(
+                title: "Settings",
+                size: NSSize(width: 480, height: 500),
+                minSize: NSSize(width: 380, height: 300)
             )
-            p.title = "Settings"
-            p.isReleasedWhenClosed = false
-            p.tabbingMode = .disallowed
-            p.minSize = NSSize(width: 380, height: 300)
             p.contentView = NSHostingView(rootView: SettingsView())
             panel = p
         }
-        if !(panel?.isVisible ?? false) { panel?.center() }
-        panel?.makeKeyAndOrderFront(nil)
+        if let panel { UtilityPanel.present(panel) }
     }
 }

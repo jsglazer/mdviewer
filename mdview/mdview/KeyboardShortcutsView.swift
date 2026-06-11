@@ -84,6 +84,37 @@ struct KeyboardShortcutsView: View {
 
 import AppKit
 
+// Shared NSPanel construction for the app's utility panels (Settings, Document
+// CSS, Keyboard Shortcuts), which were otherwise three copies of the same setup.
+enum UtilityPanel {
+    static func make(
+        title: String,
+        size: NSSize,
+        minSize: NSSize,
+        miniaturizable: Bool = false
+    ) -> NSPanel {
+        var style: NSWindow.StyleMask = [.titled, .closable, .resizable]
+        if miniaturizable { style.insert(.miniaturizable) }
+        let p = NSPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: style,
+            backing: .buffered,
+            defer: false
+        )
+        p.title = title
+        p.isReleasedWhenClosed = false
+        p.tabbingMode = .disallowed
+        p.minSize = minSize
+        return p
+    }
+
+    // Center only when the panel is not already on screen, then bring it forward.
+    static func present(_ panel: NSPanel) {
+        if !panel.isVisible { panel.center() }
+        panel.makeKeyAndOrderFront(nil)
+    }
+}
+
 final class ShortcutsPanelController {
     static let shared = ShortcutsPanelController()
     private var panel: NSPanel?
@@ -91,20 +122,14 @@ final class ShortcutsPanelController {
 
     func show() {
         if panel == nil {
-            let p = NSPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 360, height: 540),
-                styleMask: [.titled, .closable, .resizable],
-                backing: .buffered,
-                defer: false
+            let p = UtilityPanel.make(
+                title: "Keyboard Shortcuts",
+                size: NSSize(width: 360, height: 540),
+                minSize: NSSize(width: 300, height: 300)
             )
-            p.title = "Keyboard Shortcuts"
-            p.isReleasedWhenClosed = false
-            p.tabbingMode = .disallowed
-            p.minSize = NSSize(width: 300, height: 300)
             p.contentView = NSHostingView(rootView: KeyboardShortcutsView())
             panel = p
         }
-        if !(panel?.isVisible ?? false) { panel?.center() }
-        panel?.makeKeyAndOrderFront(nil)
+        if let panel { UtilityPanel.present(panel) }
     }
 }

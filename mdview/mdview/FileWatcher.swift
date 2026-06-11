@@ -5,6 +5,7 @@ class FileWatcher {
     private var fd: Int32 = -1
     private let url: URL
     private let onChange: (String) -> Void
+    private var pendingRead: DispatchWorkItem?
 
     init(url: URL, onChange: @escaping (String) -> Void) {
         self.url = url
@@ -35,8 +36,10 @@ class FileWatcher {
         src.setEventHandler { [weak self] in
             guard let self else { return }
             let flags = src.data
-            // Small delay so writes are fully flushed before reading
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            // Debounce: a single save can emit several events (and large writes
+            // arrive in chunks). Coalesce a burst into one read after it quiesces.
+            self.pendingRead?.cancel()
+            let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
                 if let text = try? String(contentsOf: self.url, encoding: .utf8) {
                     self.onChange(text)
@@ -49,6 +52,8 @@ class FileWatcher {
                     }
                 }
             }
+            self.pendingRead = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: work)
         }
 
         src.setCancelHandler { [weak self] in
@@ -61,5 +66,5 @@ class FileWatcher {
         source = src
     }
 
-    deinit { source?.cancel() }
+    deinit { pendingRead?.cancel(); source?.cancel() }
 }

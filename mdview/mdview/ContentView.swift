@@ -37,6 +37,7 @@ struct ContentView: View {
                     autoScrollMode: autoScrollMode,
                     customCSS: customCSS,
                     showLineNumbers: showLineNumbers,
+                    baseDir: fileURL?.deletingLastPathComponent(),
                     onHeadingsUpdated: { tocItems = $0 },
                     onActiveHeadingsChanged: { activeHeadingChain = $0 }
                 )
@@ -210,38 +211,46 @@ struct ContentView: View {
     // MARK: - Markdown processing
 
     private func process(_ markdown: String) -> String {
-        guard let baseDir = fileURL?.deletingLastPathComponent() else { return markdown }
-        return inlineImages(in: markdown, baseDir: baseDir)
+        // Image bytes are served lazily by ImageSchemeHandler; here we only rewrite
+        // relative paths to the custom scheme so the WebView requests them.
+        guard fileURL != nil else { return markdown }
+        return rewriteImagePaths(in: markdown)
     }
 
-    private func inlineImages(in markdown: String, baseDir: URL) -> String {
-        let pattern = try! NSRegularExpression(pattern: #"(!\[[^\]]*\]\()([^)\s"]+)"#)
+    // Matches the URL part of ![alt](url ...) including the <angle-bracket> form.
+    private static let imagePattern = try! NSRegularExpression(
+        pattern: #"(!\[[^\]]*\]\()\s*(<[^>]*>|[^)\s]+)"#
+    )
+
+    private func rewriteImagePaths(in markdown: String) -> String {
         let mutableString = NSMutableString(string: markdown)
         var offset = 0
-        let matches = pattern.matches(in: markdown, range: NSRange(markdown.startIndex..., in: markdown))
+        let matches = Self.imagePattern.matches(
+            in: markdown, range: NSRange(markdown.startIndex..., in: markdown)
+        )
         for match in matches {
             let nsPathRange = match.range(at: 2)
             guard nsPathRange.location != NSNotFound,
                   let pathRange = Range(nsPathRange, in: markdown) else { continue }
-            let path = String(markdown[pathRange])
-            guard !path.hasPrefix("http"), !path.hasPrefix("data:"),
-                  !path.hasPrefix("/"), !path.hasPrefix("file:") else { continue }
-            let imageURL = baseDir.appendingPathComponent(path)
-            guard let data = try? Data(contentsOf: imageURL) else { continue }
-            let ext = imageURL.pathExtension.lowercased()
-            let mime: String
-            switch ext {
-            case "png":        mime = "image/png"
-            case "jpg","jpeg": mime = "image/jpeg"
-            case "gif":        mime = "image/gif"
-            case "svg":        mime = "image/svg+xml"
-            case "webp":       mime = "image/webp"
-            default:           mime = "image/\(ext)"
+            var path = String(markdown[pathRange])
+            if path.hasPrefix("<") && path.hasSuffix(">") {
+                path = String(path.dropFirst().dropLast())
             }
-            let dataURI = "data:\(mime);base64,\(data.base64EncodedString())"
+            // Leave absolute, remote, data: and already-handled URLs untouched.
+            guard !path.isEmpty,
+                  !path.hasPrefix("http"), !path.hasPrefix("data:"),
+                  !path.hasPrefix("/"), !path.hasPrefix("file:"),
+                  !path.hasPrefix("\(ImageSchemeHandler.scheme):") else { continue }
+
+            // Normalise any existing percent-encoding, then re-encode for the URL so
+            // both "my image.png" and "my%20image.png" resolve to the same file.
+            let decoded = path.removingPercentEncoding ?? path
+            let encoded = decoded.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? decoded
+            let replacement = "\(ImageSchemeHandler.scheme)://local/\(encoded)"
+
             let adjustedRange = NSRange(location: nsPathRange.location + offset, length: nsPathRange.length)
-            mutableString.replaceCharacters(in: adjustedRange, with: dataURI)
-            offset += dataURI.utf16.count - path.utf16.count
+            mutableString.replaceCharacters(in: adjustedRange, with: replacement)
+            offset += replacement.utf16.count - (nsPathRange.length)
         }
         return mutableString as String
     }

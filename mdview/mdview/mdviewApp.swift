@@ -26,10 +26,14 @@ struct mdviewApp: App {
             CommandGroup(replacing: .newItem) { }
             CommandGroup(replacing: .appInfo) {
                 Button("About mdview") {
+                    let info = Bundle.main.infoDictionary
+                    let shortVersion = info?["CFBundleShortVersionString"] as? String ?? ""
+                    let build = info?["CFBundleVersion"] as? String ?? ""
                     NSApp.orderFrontStandardAboutPanel(options: [
                         .applicationIcon: NSApp.applicationIconImage as Any,
                         .applicationName: "mdview" as Any,
-                        .version: "" as Any
+                        .applicationVersion: shortVersion as Any,
+                        .version: build as Any
                     ])
                     NSApp.keyWindow?.tabbingMode = .disallowed
                 }

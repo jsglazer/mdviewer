@@ -175,13 +175,66 @@ md.core.ruler.push('source_map', function(state) {
   });
 });
 
+// KaTeX math as a token-level rule. Operates only on `text` children of inline
+// tokens, so math inside code spans / fenced blocks (which are code_inline /
+// fence tokens, never text) is left verbatim. Delimiters must hug their content
+// (no inner leading/trailing space) so prose like "$5 to $10" is not matched.
+const _mathRe = /\$\$(?!\s)((?:[^$]|\$(?!\$))+?)(?<!\s)\$\$|\$(?!\s)((?:[^$\\]|\\.)+?)(?<!\s)\$/g;
+
+function _mathTokens(content, Token) {
+  _mathRe.lastIndex = 0;
+  let parts = null, last = 0, m;
+  while ((m = _mathRe.exec(content)) !== null) {
+    const isDisplay = m[1] !== undefined;
+    const tex = (isDisplay ? m[1] : m[2]).trim();
+    let html;
+    try { html = katex.renderToString(tex, { displayMode: isDisplay, throwOnError: false }); }
+    catch (e) { continue; }   // leave malformed math as literal text
+    parts = parts || [];
+    if (m.index > last) {
+      const t = new Token('text', '', 0);
+      t.content = content.slice(last, m.index);
+      parts.push(t);
+    }
+    const h = new Token('html_inline', '', 0);
+    h.content = html;
+    parts.push(h);
+    last = m.index + m[0].length;
+  }
+  if (!parts) return null;
+  if (last < content.length) {
+    const t = new Token('text', '', 0);
+    t.content = content.slice(last);
+    parts.push(t);
+  }
+  return parts;
+}
+
+md.core.ruler.after('inline', 'katex_math', function(state) {
+  const Token = state.Token;
+  state.tokens.forEach(function(blockTok) {
+    if (blockTok.type !== 'inline' || !blockTok.children) return;
+    const children = blockTok.children;
+    for (let i = 0; i < children.length; i++) {
+      if (children[i].type !== 'text') continue;
+      const replaced = _mathTokens(children[i].content, Token);
+      if (replaced) { children.splice(i, 1, ...replaced); i += replaced.length - 1; }
+    }
+  });
+});
+
 // Heading ID generation — reset per render
 let _headingIdCount = {};
 
+// Shared selector for h1-h6 (keep in sync across getHeadings / active tracking)
+const HEADING_SEL = '#content h1,#content h2,#content h3,#content h4,#content h5,#content h6';
+
 function _makeHeadingId(rawText) {
-  const base = ('h-' + rawText.toLowerCase()
-    .replace(/[^\w\s-]/g, '').trim()
-    .replace(/\s+/g, '-').slice(0, 50)) || 'heading';
+  // \p{L}\p{N} keeps accented/CJK/Cyrillic letters; ASCII-only \w dropped them all.
+  const slug = rawText.toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '').trim()
+    .replace(/\s+/g, '-').slice(0, 50);
+  const base = slug ? 'h-' + slug : 'heading';
   _headingIdCount[base] = (_headingIdCount[base] || 0) + 1;
   return _headingIdCount[base] === 1 ? base : base + '-' + _headingIdCount[base];
 }
@@ -197,21 +250,9 @@ md.renderer.rules.heading_open = function(tokens, idx, options, env, self) {
     : self.renderToken(tokens, idx, options);
 };
 
-// KaTeX math rendering
-function renderMath(src) {
-  src = src.replace(/\$\$([\s\S]+?)\$\$/g, function(_, tex) {
-    try { return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false }); } catch { return _; }
-  });
-  src = src.replace(/\$([^\n$]+?)\$/g, function(_, tex) {
-    try { return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false }); } catch { return _; }
-  });
-  return src;
-}
-
 function render(markdown) {
   _headingIdCount = {};
-  const mathProcessed = renderMath(markdown);
-  document.getElementById('content').innerHTML = md.render(mathProcessed);
+  document.getElementById('content').innerHTML = md.render(markdown);
 }
 
 // ── Line numbers ────────────────────────────────────────────────────────────
@@ -266,7 +307,7 @@ window.setMarkdown = function(markdown) {
 // Return JSON array of {level, text, id} for h1-h5 headings
 window.getHeadings = function() {
   const items = [];
-  document.querySelectorAll('#content h1,#content h2,#content h3,#content h4,#content h5').forEach(function(el) {
+  document.querySelectorAll(HEADING_SEL).forEach(function(el) {
     items.push({ level: parseInt(el.tagName[1], 10), text: el.textContent.trim(), id: el.id });
   });
   return JSON.stringify(items);
@@ -313,9 +354,7 @@ window.scrollPageDown = function() {
 
 // ── Active heading tracking ─────────────────────────────────────────────────
 function _getActiveHeadingIds(referenceEl) {
-  const headings = Array.from(document.querySelectorAll(
-    '#content h1,#content h2,#content h3,#content h4,#content h5'
-  ));
+  const headings = Array.from(document.querySelectorAll(HEADING_SEL));
   if (!headings.length) return [];
 
   let activeIdx = -1;
@@ -399,7 +438,26 @@ window.findText = function(query) {
   let n;
   while ((n = walker.nextNode())) textNodes.push(n);
 
-  for (const textNode of textNodes) {
+  // 2-word context, drawing from neighbouring text nodes when the match sits at
+  // a node boundary (detached nodes keep their textContent, so this is safe even
+  // after earlier nodes have been replaced).
+  function ctxBefore(nodeIdx, localBefore) {
+    let words = localBefore.trim().split(/\s+/).filter(Boolean);
+    for (let j = nodeIdx - 1; j >= 0 && words.length < 2; j--) {
+      words = textNodes[j].textContent.trim().split(/\s+/).filter(Boolean).concat(words);
+    }
+    return words.slice(-2).join(' ');
+  }
+  function ctxAfter(nodeIdx, localAfter) {
+    let words = localAfter.trim().split(/\s+/).filter(Boolean);
+    for (let j = nodeIdx + 1; j < textNodes.length && words.length < 2; j++) {
+      words = words.concat(textNodes[j].textContent.trim().split(/\s+/).filter(Boolean));
+    }
+    return words.slice(0, 2).join(' ');
+  }
+
+  for (let ni = 0; ni < textNodes.length; ni++) {
+    const textNode = textNodes[ni];
     const text = textNode.textContent;
     const lower = text.toLowerCase();
     const positions = [];
@@ -421,10 +479,12 @@ window.findText = function(query) {
       frag.appendChild(mark);
       _findMarks.push(mark);
 
-      // 2-word context on each side, within this text node
-      const beforeWords = text.slice(0, start).trim().split(/\s+/).filter(Boolean).slice(-2).join(' ');
-      const afterWords  = text.slice(end).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ');
-      results.push({ index: matchIndex, before: beforeWords, match: text.slice(start, end), after: afterWords });
+      results.push({
+        index: matchIndex,
+        before: ctxBefore(ni, text.slice(0, start)),
+        match: text.slice(start, end),
+        after: ctxAfter(ni, text.slice(end))
+      });
       matchIndex++;
       lastEnd = end;
     }
