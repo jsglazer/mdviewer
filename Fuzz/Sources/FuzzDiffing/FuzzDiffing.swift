@@ -16,7 +16,8 @@ public func fuzzDiffing(_ start: UnsafePointer<UInt8>, _ count: Int) -> CInt {
     else { return 0 }
 
     let midOffset = count / 2
-    let mid = input.index(input.startIndex, offsetBy: midOffset, limitedBy: input.endIndex)
+    let mid =
+        input.index(input.startIndex, offsetBy: midOffset, limitedBy: input.endIndex)
         ?? input.endIndex
     let old = String(input[..<mid])
     let new = String(input[mid...])
