@@ -1,5 +1,8 @@
 # mdview
 
+[![GitHub release](https://img.shields.io/github/v/release/jsglazer/mdviewer?logo=github)](https://github.com/jsglazer/mdviewer/releases)
+[![GitHub license](https://img.shields.io/github/license/jsglazer/mdviewer)](https://github.com/jsglazer/mdviewer/blob/main/LICENSE)
+[![Made with Claude](https://img.shields.io/badge/Made_with-Claude-D97756?logo=anthropic)](https://claude.ai)
 [![CI](https://github.com/jsglazer/mdviewer/actions/workflows/ci.yml/badge.svg)](https://github.com/jsglazer/mdviewer/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/jsglazer/mdviewer/actions/workflows/codeql.yml/badge.svg)](https://github.com/jsglazer/mdviewer/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/jsglazer/mdviewer/badge)](https://securityscorecards.dev/viewer/?uri=github.com/jsglazer/mdviewer)
