@@ -5,7 +5,7 @@ import AppKit
 final class RecentLimitDocumentController: NSDocumentController {
     override var maximumRecentDocumentCount: Int {
         let configured = UserDefaults.standard.integer(forKey: "maxRecentFiles")
-        return configured > 0 ? configured : 10   // 0 = unset; fall back to the default
+        return configured > 0 ? configured : 10  // 0 = unset; fall back to the default
     }
 }
 
@@ -33,16 +33,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
-              !(window is NSPanel),
-              window.styleMask.contains(.titled),
-              window.level == .normal else { return }
+            !(window is NSPanel),
+            window.styleMask.contains(.titled),
+            window.level == .normal
+        else { return }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             let remaining = NSApp.windows.filter {
-                !($0 is NSPanel) &&
-                ($0.isVisible || $0.isMiniaturized) &&
-                $0.styleMask.contains(.titled) &&
-                $0.level == .normal
+                !($0 is NSPanel) && ($0.isVisible || $0.isMiniaturized)
+                    && $0.styleMask.contains(.titled) && $0.level == .normal
             }
             if remaining.isEmpty {
                 NSApp.terminate(nil)
@@ -52,24 +51,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func windowDidBecomeKey(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
-              !(window is NSPanel),
-              window.styleMask.contains(.titled),
-              window.level == .normal else { return }
+            !(window is NSPanel),
+            window.styleMask.contains(.titled),
+            window.level == .normal
+        else { return }
 
         window.tabbingMode = .preferred
 
         DispatchQueue.main.async {
             guard window.isVisible,
-                  window.tabbingMode != .disallowed,
-                  window.tabbedWindows == nil || window.tabbedWindows!.count <= 1 else { return }
+                window.tabbingMode != .disallowed,
+                window.tabbedWindows == nil || window.tabbedWindows!.count <= 1
+            else { return }
 
             let others = NSApp.windows.filter {
-                $0 !== window &&
-                $0.isVisible &&
-                $0.styleMask.contains(.titled) &&
-                $0.level == .normal &&
-                !$0.isMiniaturized &&
-                !($0.tabbedWindows ?? []).contains(where: { $0 === window })
+                $0 !== window && $0.isVisible && $0.styleMask.contains(.titled)
+                    && $0.level == .normal && !$0.isMiniaturized
+                    && !($0.tabbedWindows ?? []).contains(where: { $0 === window })
             }
 
             guard let target = others.first else { return }

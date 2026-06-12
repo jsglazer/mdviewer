@@ -8,6 +8,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// swiftlint:disable:next type_name
 nonisolated struct mdviewDocument: FileDocument {
     var text: String
 
@@ -17,12 +18,12 @@ nonisolated struct mdviewDocument: FileDocument {
 
     static let readableContentTypes: [UTType] = [
         UTType(filenameExtension: "md") ?? .plainText,
-        UTType(filenameExtension: "markdown") ?? .plainText
+        UTType(filenameExtension: "markdown") ?? .plainText,
     ]
 
     init(configuration: ReadConfiguration) throws {
         guard let data = configuration.file.regularFileContents,
-              let string = String(data: data, encoding: .utf8)
+            let string = String(data: data, encoding: .utf8)
         else {
             throw CocoaError(.fileReadCorruptFile)
         }

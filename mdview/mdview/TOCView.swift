@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TOCView: View {
     let items: [TOCItem]
-    var activeChain: [String] = []   // [0] = current (deepest), last = root ancestor
+    var activeChain: [String] = []  // [0] = current (deepest), last = root ancestor
     let onSelect: (String) -> Void
 
     @State private var collapsed: Set<String> = []
@@ -91,7 +91,7 @@ struct TOCView: View {
 
     private var visibleItems: [TOCItem] {
         var result: [TOCItem] = []
-        var hideBelowLevel: Int? = nil
+        var hideBelowLevel: Int?
         for item in items {
             if let cutoff = hideBelowLevel {
                 if item.level <= cutoff { hideBelowLevel = nil } else { continue }
@@ -103,7 +103,9 @@ struct TOCView: View {
     }
 
     private func hasChildren(_ item: TOCItem) -> Bool {
-        guard let idx = items.firstIndex(where: { $0.id == item.id }), idx + 1 < items.count else { return false }
+        guard let idx = items.firstIndex(where: { $0.id == item.id }), idx + 1 < items.count else {
+            return false
+        }
         for i in (idx + 1)..<items.count {
             if items[i].level <= item.level { break }
             return true
@@ -112,13 +114,16 @@ struct TOCView: View {
     }
 
     private func toggleCollapse(_ item: TOCItem) {
-        if collapsed.contains(item.id) { collapsed.remove(item.id) }
-        else { collapsed.insert(item.id) }
+        if collapsed.contains(item.id) {
+            collapsed.remove(item.id)
+        } else {
+            collapsed.insert(item.id)
+        }
     }
 }
 
-private let tocCurrentColor = Color(red: 189/255, green: 1.0,   blue: 217/255) // #bdffd9
-private let tocRootColor    = Color(red:  80/255, green: 190/255, blue: 230/255) // #50bee6
+private let tocCurrentColor = Color(red: 189 / 255, green: 1.0, blue: 217 / 255)  // #bdffd9
+private let tocRootColor = Color(red: 80 / 255, green: 190 / 255, blue: 230 / 255)  // #50bee6
 
 private struct TOCRow: View {
     let item: TOCItem
@@ -133,7 +138,7 @@ private struct TOCRow: View {
 
     private var rowBackground: Color {
         if isCurrent { return tocCurrentColor }
-        if isRoot    { return tocRootColor }
+        if isRoot { return tocRootColor }
         return Color.clear
     }
 

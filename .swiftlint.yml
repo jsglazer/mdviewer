@@ -1,0 +1,57 @@
+# devkit SwiftLint config — Obsidian-plugin equivalent of the obsidianmd ruleset,
+# but for Swift/Xcode apps. Style + correctness rules; tuned to be useful, not noisy.
+# Run with: make lint   (swiftlint lint --strict)
+
+# Lint everything by default; the workflow scopes paths via the Makefile.
+excluded:
+  - .build
+  - DerivedData
+  - build
+  - Pods
+  - .git
+
+# Opt-in rules worth having (off by default in SwiftLint).
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - first_where
+  - last_where
+  - contains_over_first_not_nil
+  - redundant_nil_coalescing
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - overridden_super_call
+  - unused_import
+  - closure_spacing
+  - collection_alignment
+  - fatal_error_message
+
+# Rules that fight common SwiftUI/AppKit patterns — disable to cut noise.
+disabled_rules:
+  - todo                 # TODO/FIXME comments are fine during development
+  - trailing_whitespace  # handled by swift-format instead
+  - trailing_comma       # conflicts with swift-format (authoritative formatter)
+
+line_length:
+  warning: 120
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+type_body_length:
+  warning: 400
+  error: 600
+
+file_length:
+  warning: 600
+  error: 1000
+
+function_body_length:
+  warning: 80
+  error: 150
+
+identifier_name:
+  min_length: 2          # allow short SwiftUI names like id, x, y
+  excluded: [id, x, y, i, j, to, vc]
+
+reporter: "xcode"

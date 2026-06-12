@@ -53,10 +53,13 @@ struct FindResultsView: View {
 
     private var header: some View {
         HStack {
-            Text(results.isEmpty ? "No matches" : "\(results.count) match\(results.count == 1 ? "" : "es")")
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
+            Text(
+                results.isEmpty
+                    ? "No matches" : "\(results.count) match\(results.count == 1 ? "" : "es")"
+            )
+            .font(.caption)
+            .fontWeight(.medium)
+            .foregroundStyle(.secondary)
             Spacer()
         }
         .padding(.horizontal, 10)
@@ -76,7 +79,9 @@ private struct FindRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(isSelected ? highlightColor : Color(NSColor.controlBackgroundColor).opacity(0.001))
+            .background(
+                isSelected ? highlightColor : Color(NSColor.controlBackgroundColor).opacity(0.001)
+            )
             .contentShape(Rectangle())
             .onTapGesture { onSelect() }
     }

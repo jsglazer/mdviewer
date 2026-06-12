@@ -13,7 +13,7 @@ struct ContentView: View {
     @State private var showLineNumbers: Bool = false
     @State private var findQuery: String = ""
     @State private var findResults: [FindResult] = []
-    @State private var currentFindIndex: Int? = nil
+    @State private var currentFindIndex: Int?
     @State private var tocItems: [TOCItem] = []
     @State private var activeHeadingChain: [String] = []
     @State private var markdownController = MarkdownController()
@@ -28,7 +28,7 @@ struct ContentView: View {
                         markdownController.scrollToMatch($0)
                         findFocused = true
                     }
-                        .frame(width: 210)
+                    .frame(width: 210)
                     Divider()
                 }
                 MarkdownView(
@@ -43,8 +43,11 @@ struct ContentView: View {
                 )
                 if showTOC {
                     Divider()
-                    TOCView(items: tocItems, activeChain: activeHeadingChain, onSelect: { markdownController.scrollToHeading(id: $0) })
-                        .frame(width: 220)
+                    TOCView(
+                        items: tocItems, activeChain: activeHeadingChain,
+                        onSelect: { markdownController.scrollToHeading(id: $0) }
+                    )
+                    .frame(width: 220)
                 }
             }
         }
@@ -67,7 +70,8 @@ struct ContentView: View {
             showFind = true
             findFocused = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("mdviewCloseFind"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("mdviewCloseFind")))
+        { _ in
             closeFind()
         }
         .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleLineNumbers)) { _ in
@@ -88,9 +92,15 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mdviewShowKeyboardShortcuts)) { _ in
             ShortcutsPanelController.shared.show()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomIn))    { _ in markdownController.zoomIn() }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomOut))   { _ in markdownController.zoomOut() }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewResetZoom)) { _ in markdownController.resetZoom() }
+        .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomIn)) { _ in
+            markdownController.zoomIn()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomOut)) { _ in
+            markdownController.zoomOut()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mdviewResetZoom)) { _ in
+            markdownController.resetZoom()
+        }
     }
 
     // MARK: - Ribbon
@@ -99,20 +109,26 @@ struct ContentView: View {
         ZStack {
             // Left + right anchored buttons
             HStack(spacing: 4) {
-                RibbonButton(icon: "arrow.up.to.line",   label: "Jump to New",   isActive: autoScrollMode == .firstNew) {
+                RibbonButton(
+                    icon: "arrow.up.to.line", label: "Jump to New",
+                    isActive: autoScrollMode == .firstNew
+                ) {
                     autoScrollMode = autoScrollMode == .firstNew ? .none : .firstNew
                 }
-                RibbonButton(icon: "arrow.down.to.line", label: "Tail",          isActive: autoScrollMode == .tail) {
+                RibbonButton(
+                    icon: "arrow.down.to.line", label: "Tail", isActive: autoScrollMode == .tail
+                ) {
                     autoScrollMode = autoScrollMode == .tail ? .none : .tail
                 }
-                RibbonButton(icon: "list.number",        label: "Line Numbers",  isActive: showLineNumbers) {
+                RibbonButton(icon: "list.number", label: "Line Numbers", isActive: showLineNumbers)
+                {
                     showLineNumbers.toggle()
                 }
                 Spacer()
-                RibbonButton(icon: "doc.plaintext",      label: "Show CSS",      isActive: false) {
+                RibbonButton(icon: "doc.plaintext", label: "Show CSS", isActive: false) {
                     showDocumentCSS()
                 }
-                RibbonButton(icon: "sidebar.right",      label: "Outline",       isActive: showTOC) {
+                RibbonButton(icon: "sidebar.right", label: "Outline", isActive: showTOC) {
                     showTOC.toggle()
                 }
                 Button {
@@ -149,12 +165,20 @@ struct ContentView: View {
                 .font(.caption)
                 .focused($findFocused)
                 .onChange(of: findQuery) { _, q in performFind(q) }
-                .onKeyPress(.escape) { closeFind(); return .handled }
-                .onKeyPress(.downArrow) { navigateFind(delta: 1); return .handled }
-                .onKeyPress(.upArrow)   { navigateFind(delta: -1); return .handled }
+                .onKeyPress(.escape) {
+                    closeFind(); return .handled
+                }
+                .onKeyPress(.downArrow) {
+                    navigateFind(delta: 1); return .handled
+                }
+                .onKeyPress(.upArrow) {
+                    navigateFind(delta: -1); return .handled
+                }
                 .onSubmit { navigateFind(delta: 1) }
             if !findQuery.isEmpty {
-                Button { findQuery = ""; findResults = []; markdownController.clearFind() } label: {
+                Button {
+                    findQuery = ""; findResults = []; markdownController.clearFind()
+                } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                         .font(.system(size: 11))
@@ -166,7 +190,8 @@ struct ContentView: View {
         .padding(.vertical, 4)
         .background(Color(NSColor.textBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.accentColor.opacity(0.5), lineWidth: 1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6).stroke(Color.accentColor.opacity(0.5), lineWidth: 1))
     }
 
     // MARK: - Find logic
@@ -231,24 +256,28 @@ struct ContentView: View {
         for match in matches {
             let nsPathRange = match.range(at: 2)
             guard nsPathRange.location != NSNotFound,
-                  let pathRange = Range(nsPathRange, in: markdown) else { continue }
+                let pathRange = Range(nsPathRange, in: markdown)
+            else { continue }
             var path = String(markdown[pathRange])
             if path.hasPrefix("<") && path.hasSuffix(">") {
                 path = String(path.dropFirst().dropLast())
             }
             // Leave absolute, remote, data: and already-handled URLs untouched.
             guard !path.isEmpty,
-                  !path.hasPrefix("http"), !path.hasPrefix("data:"),
-                  !path.hasPrefix("/"), !path.hasPrefix("file:"),
-                  !path.hasPrefix("\(ImageSchemeHandler.scheme):") else { continue }
+                !path.hasPrefix("http"), !path.hasPrefix("data:"),
+                !path.hasPrefix("/"), !path.hasPrefix("file:"),
+                !path.hasPrefix("\(ImageSchemeHandler.scheme):")
+            else { continue }
 
             // Normalise any existing percent-encoding, then re-encode for the URL so
             // both "my image.png" and "my%20image.png" resolve to the same file.
             let decoded = path.removingPercentEncoding ?? path
-            let encoded = decoded.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? decoded
+            let encoded =
+                decoded.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? decoded
             let replacement = "\(ImageSchemeHandler.scheme)://local/\(encoded)"
 
-            let adjustedRange = NSRange(location: nsPathRange.location + offset, length: nsPathRange.length)
+            let adjustedRange = NSRange(
+                location: nsPathRange.location + offset, length: nsPathRange.length)
             mutableString.replaceCharacters(in: adjustedRange, with: replacement)
             offset += replacement.utf16.count - (nsPathRange.length)
         }

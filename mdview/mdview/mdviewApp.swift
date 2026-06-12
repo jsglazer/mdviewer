@@ -2,19 +2,20 @@ import SwiftUI
 import AppKit
 
 extension Notification.Name {
-    static let mdviewOpenFind              = Notification.Name("mdviewOpenFind")
-    static let mdviewToggleLineNumbers     = Notification.Name("mdviewToggleLineNumbers")
-    static let mdviewShowCSS               = Notification.Name("mdviewShowCSS")
-    static let mdviewToggleJumpToNew       = Notification.Name("mdviewToggleJumpToNew")
-    static let mdviewToggleTail            = Notification.Name("mdviewToggleTail")
-    static let mdviewToggleOutline         = Notification.Name("mdviewToggleOutline")
+    static let mdviewOpenFind = Notification.Name("mdviewOpenFind")
+    static let mdviewToggleLineNumbers = Notification.Name("mdviewToggleLineNumbers")
+    static let mdviewShowCSS = Notification.Name("mdviewShowCSS")
+    static let mdviewToggleJumpToNew = Notification.Name("mdviewToggleJumpToNew")
+    static let mdviewToggleTail = Notification.Name("mdviewToggleTail")
+    static let mdviewToggleOutline = Notification.Name("mdviewToggleOutline")
     static let mdviewShowKeyboardShortcuts = Notification.Name("mdviewShowKeyboardShortcuts")
-    static let mdviewZoomIn                = Notification.Name("mdviewZoomIn")
-    static let mdviewZoomOut               = Notification.Name("mdviewZoomOut")
-    static let mdviewResetZoom             = Notification.Name("mdviewResetZoom")
+    static let mdviewZoomIn = Notification.Name("mdviewZoomIn")
+    static let mdviewZoomOut = Notification.Name("mdviewZoomOut")
+    static let mdviewResetZoom = Notification.Name("mdviewResetZoom")
 }
 
 @main
+// swiftlint:disable:next type_name
 struct mdviewApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
@@ -23,7 +24,7 @@ struct mdviewApp: App {
             ContentView(document: config.document, fileURL: config.fileURL)
         }
         .commands {
-            CommandGroup(replacing: .newItem) { }
+            CommandGroup(replacing: .newItem) {}
             CommandGroup(replacing: .appInfo) {
                 Button("About mdview") {
                     let info = Bundle.main.infoDictionary
@@ -33,7 +34,7 @@ struct mdviewApp: App {
                         .applicationIcon: NSApp.applicationIconImage as Any,
                         .applicationName: "mdview" as Any,
                         .applicationVersion: shortVersion as Any,
-                        .version: build as Any
+                        .version: build as Any,
                     ])
                     NSApp.keyWindow?.tabbingMode = .disallowed
                 }

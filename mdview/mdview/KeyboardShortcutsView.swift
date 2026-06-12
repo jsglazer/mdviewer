@@ -13,33 +13,43 @@ struct KeyboardShortcutsView: View {
     }
 
     private let sections: [Section] = [
-        Section(title: "Navigation", rows: [
-            Row(key: "⌘ ↑",  desc: "Go to top"),
-            Row(key: "⌘ ↓",  desc: "Go to bottom"),
-            Row(key: "⌘ ←",  desc: "Page up"),
-            Row(key: "⌘ →",  desc: "Page down"),
-        ]),
-        Section(title: "Scroll Mode", rows: [
-            Row(key: "⌘ J",    desc: "Toggle Jump to New Content"),
-            Row(key: "⌘ ⇧ T", desc: "Toggle Tail Mode"),
-        ]),
-        Section(title: "View", rows: [
-            Row(key: "⌘ ⇧ L", desc: "Toggle Line Numbers"),
-            Row(key: "⌘ ⇧ O", desc: "Toggle Outline panel"),
-            Row(key: "⌘ ⇧ C", desc: "Show Document CSS"),
-            Row(key: "⌘ +",   desc: "Zoom In"),
-            Row(key: "⌘ −",   desc: "Zoom Out"),
-            Row(key: "⌘ 0",   desc: "Actual Size"),
-            Row(key: "⌘ ⇧ K", desc: "Keyboard Shortcuts (this window)"),
-        ]),
-        Section(title: "Find", rows: [
-            Row(key: "⌘ F",  desc: "Open Find"),
-            Row(key: "↩",    desc: "Jump to first result"),
-            Row(key: "Esc",  desc: "Close Find"),
-        ]),
-        Section(title: "App", rows: [
-            Row(key: "⌘ ,", desc: "Settings"),
-        ]),
+        Section(
+            title: "Navigation",
+            rows: [
+                Row(key: "⌘ ↑", desc: "Go to top"),
+                Row(key: "⌘ ↓", desc: "Go to bottom"),
+                Row(key: "⌘ ←", desc: "Page up"),
+                Row(key: "⌘ →", desc: "Page down"),
+            ]),
+        Section(
+            title: "Scroll Mode",
+            rows: [
+                Row(key: "⌘ J", desc: "Toggle Jump to New Content"),
+                Row(key: "⌘ ⇧ T", desc: "Toggle Tail Mode"),
+            ]),
+        Section(
+            title: "View",
+            rows: [
+                Row(key: "⌘ ⇧ L", desc: "Toggle Line Numbers"),
+                Row(key: "⌘ ⇧ O", desc: "Toggle Outline panel"),
+                Row(key: "⌘ ⇧ C", desc: "Show Document CSS"),
+                Row(key: "⌘ +", desc: "Zoom In"),
+                Row(key: "⌘ −", desc: "Zoom Out"),
+                Row(key: "⌘ 0", desc: "Actual Size"),
+                Row(key: "⌘ ⇧ K", desc: "Keyboard Shortcuts (this window)"),
+            ]),
+        Section(
+            title: "Find",
+            rows: [
+                Row(key: "⌘ F", desc: "Open Find"),
+                Row(key: "↩", desc: "Jump to first result"),
+                Row(key: "Esc", desc: "Close Find"),
+            ]),
+        Section(
+            title: "App",
+            rows: [
+                Row(key: "⌘ ,", desc: "Settings")
+            ]),
     ]
 
     var body: some View {

@@ -9,8 +9,11 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Recent Files") {
-                Stepper("Show \(maxRecentFiles) recent files", value: $maxRecentFiles, in: 5...50, step: 5)
-                    .help("Controls how many files appear in the Open Recent submenu")
+                Stepper(
+                    "Show \(maxRecentFiles) recent files", value: $maxRecentFiles, in: 5...50,
+                    step: 5
+                )
+                .help("Controls how many files appear in the Open Recent submenu")
             }
 
             Section("Custom CSS") {

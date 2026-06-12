@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app || true
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Format check
+        run: make format-check
+
+      - name: Lint
+        run: make lint
+        continue-on-error: true
+
+      - name: Build
+        run: make build
+
+      # Enable once a test target exists:
+      # - name: Test
+      #   run: make test
