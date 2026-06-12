@@ -1,0 +1,19 @@
+.DS_Store
+.gitignore
+CLAUDE.md
+claude_session.log
+claudelog.md
+PROGRESS.md
+Prompt-01-Design.md
+.claude
+BuildAndDMG.sh
+MakeDMG-mdView.sh
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+
+ClaudeStatus.md
+
+# Swift Package Manager build artifacts
+Fuzz/.build/

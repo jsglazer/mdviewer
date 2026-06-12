@@ -1,3 +1,0 @@
-module FuzzDocument {
-    header "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/debug/FuzzDocument.build/include/FuzzDocument-Swift.h"
-}
