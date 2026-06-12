@@ -1,0 +1,3 @@
+module FuzzImagePath {
+    header "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/debug/FuzzImagePath.build/include/FuzzImagePath-Swift.h"
+}

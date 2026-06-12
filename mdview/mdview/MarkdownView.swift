@@ -70,7 +70,13 @@ final class ImageSchemeHandler: NSObject, WKURLSchemeHandler {
         }
         let rawPath = url.path.hasPrefix("/") ? String(url.path.dropFirst()) : url.path
         let relPath = rawPath.removingPercentEncoding ?? rawPath
-        let fileURL = baseDir.appendingPathComponent(relPath)
+        let fileURL = baseDir.appendingPathComponent(relPath).standardized
+        // Guard against path traversal: resolve "../" sequences and verify the result
+        // stays inside the document directory before reading any data.
+        let basePath = baseDir.standardized.path
+        guard fileURL.path == basePath || fileURL.path.hasPrefix(basePath + "/") else {
+            task.didFailWithError(URLError(.badURL)); return
+        }
         guard let data = try? Data(contentsOf: fileURL) else {
             task.didFailWithError(URLError(.fileDoesNotExist)); return
         }

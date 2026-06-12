@@ -5,6 +5,7 @@
 #   make build         Release build, no code signing
 #   make test          run the test target (if one exists)
 #   make check         format-check + lint + build (the full local gate)
+#   make fuzz          build all libFuzzer targets in Fuzz/ (requires -sanitize=fuzzer)
 #
 # Project + scheme are auto-detected; override on the command line, e.g.:
 #   make build SCHEME=MyApp CONFIG=Debug
@@ -15,7 +16,7 @@ CONFIG   ?= Release
 DEST     ?= platform=macOS
 SWIFTSRC ?= $(shell find . -name '*.swift' -not -path '*/.build/*' -not -path '*/DerivedData/*' -not -path '*/.git/*')
 
-.PHONY: lint format format-check build test check info
+.PHONY: lint format format-check build test check info fuzz fuzz-smoke
 
 info:
 	@echo "PROJECT = $(PROJECT)"
@@ -40,3 +41,12 @@ test:
 		-destination '$(DEST)' CODE_SIGNING_ALLOWED=NO
 
 check: format-check lint build
+
+fuzz-smoke:
+	cd Fuzz && swift run SmokeTest
+
+fuzz:
+	@echo "libFuzzer is not available in Xcode's macOS toolchain."
+	@echo "Fuzz targets run in the OSS-Fuzz Docker environment (Linux + open-source Swift)."
+	@echo "To test locally: make fuzz-smoke"
+	@echo "To run in Docker: see Fuzz/oss-fuzz/README.md"

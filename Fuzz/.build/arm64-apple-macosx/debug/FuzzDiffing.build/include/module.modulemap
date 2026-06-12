@@ -1,0 +1,3 @@
+module FuzzDiffing {
+    header "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/debug/FuzzDiffing.build/include/FuzzDiffing-Swift.h"
+}

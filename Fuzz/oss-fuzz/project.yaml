@@ -1,0 +1,7 @@
+homepage: "https://github.com/jsglazer/mdviewer"
+language: swift
+main_repo: "https://github.com/jsglazer/mdviewer"
+fuzzing_engines:
+  - libfuzzer
+sanitizers:
+  - address

@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/release/FuzzImagePath.build/FuzzImagePath.d",
+    "object": "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/release/FuzzImagePath.build/FuzzImagePath.o",
+    "swift-dependencies": "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/release/FuzzImagePath.build/primary.swiftdeps"
+  },
+  "/Users/josh/Dev/Apps/mdview/Fuzz/Sources/FuzzImagePath/FuzzImagePath.swift": {
+    "object": "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/release/FuzzImagePath.build/FuzzImagePath.swift.o",
+    "swiftmodule": "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/release/FuzzImagePath.build/FuzzImagePath~partial.swiftmodule",
+    "swift-dependencies": "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/release/FuzzImagePath.build/FuzzImagePath.swiftdeps",
+    "diagnostics": "/Users/josh/Dev/Apps/mdview/Fuzz/.build/arm64-apple-macosx/release/FuzzImagePath.build/FuzzImagePath.dia"
+  }
+}
