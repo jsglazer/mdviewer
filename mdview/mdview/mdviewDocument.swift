@@ -9,7 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 // swiftlint:disable:next type_name
-nonisolated struct mdviewDocument: FileDocument {
+struct mdviewDocument: FileDocument {
     var text: String
 
     init(text: String = "") {
