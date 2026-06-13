@@ -14,9 +14,9 @@ let package = Package(
     name: "mdview-fuzz",
     platforms: [.macOS(.v13)],
     targets: [
-        .target(name: "FuzzDocument",  path: "Sources/FuzzDocument"),
+        .target(name: "FuzzDocument", path: "Sources/FuzzDocument"),
         .target(name: "FuzzImagePath", path: "Sources/FuzzImagePath"),
-        .target(name: "FuzzDiffing",   path: "Sources/FuzzDiffing"),
+        .target(name: "FuzzDiffing", path: "Sources/FuzzDiffing"),
         .executableTarget(
             name: "SmokeTest",
             dependencies: ["FuzzDocument", "FuzzImagePath", "FuzzDiffing"],
