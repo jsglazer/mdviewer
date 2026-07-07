@@ -110,6 +110,16 @@
     mark.find-result { background: rgba(180, 130, 0, 0.55); }
     mark.find-result.active { background: rgba(0, 200, 200, 0.65); outline-color: rgba(0, 180, 180, 0.9); }
   }
+  /* Heading line highlight when its Outline entry is clicked.
+     Uses #bdffd9 — the same colour the Outline uses for the current entry.
+     Dark text is forced so the light-green fill stays readable in dark mode. */
+  h1.md-heading-active, h2.md-heading-active, h3.md-heading-active,
+  h4.md-heading-active, h5.md-heading-active, h6.md-heading-active {
+    background: #bdffd9;
+    color: #1a1a1a;
+    border-radius: 4px;
+    transition: background-color 0.4s ease, color 0.4s ease;
+  }
   /* Line numbers */
   body.line-numbers #content {
     padding-left: 4em;
@@ -341,10 +351,23 @@ window.scrollToBottom = function() {
   else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 };
 
-// Scroll a heading into view by its id attribute
+// Scroll a heading into view by its id attribute, and briefly highlight the
+// heading line using the same colour the Outline uses for the current entry.
+let _headingHighlightTimer = null;
 window.scrollToHeading = function(id) {
   const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Clear any prior highlight, then re-apply so repeated clicks re-flash.
+  document.querySelectorAll('.md-heading-active').forEach(function(e) {
+    e.classList.remove('md-heading-active');
+  });
+  if (_headingHighlightTimer) clearTimeout(_headingHighlightTimer);
+  void el.offsetWidth;  // force reflow so the transition restarts on re-click
+  el.classList.add('md-heading-active');
+  _headingHighlightTimer = setTimeout(function() {
+    el.classList.remove('md-heading-active');
+  }, 2000);
 };
 
 // Keyboard navigation helpers (called from Swift key handlers)
