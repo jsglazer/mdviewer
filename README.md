@@ -1,13 +1,6 @@
 # mdview
 
-[![GitHub release](https://img.shields.io/github/v/release/jsglazer/mdviewer?logo=github)](https://github.com/jsglazer/mdviewer/releases)
-[![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/jsglazer/mdviewer/blob/main/LICENSE)
-[![Made with Claude](https://img.shields.io/badge/Made_with-Claude-D97756?logo=anthropic)](https://claude.ai)
-[![Gemini Flash Antigravity](https://img.shields.io/badge/Gemini%20Flash-Antigravity-4f86f7?logo=google-gemini&logoColor=white)](https://github.com/google-gemini)
-[![CI](https://github.com/jsglazer/mdviewer/actions/workflows/ci.yml/badge.svg)](https://github.com/jsglazer/mdviewer/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/jsglazer/mdviewer/actions/workflows/codeql.yml/badge.svg)](https://github.com/jsglazer/mdviewer/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/jsglazer/mdviewer/badge)](https://securityscorecards.dev/viewer/?uri=github.com/jsglazer/mdviewer)
+[![GitHub release](https://img.shields.io/github/v/release/jsglazer/mdviewer?logo=github)](https://github.com/jsglazer/mdviewer/releases) [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org) [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/jsglazer/mdviewer/blob/main/LICENSE) [![Made with Claude](https://img.shields.io/badge/Made_with-Claude-D97756?logo=anthropic)](https://claude.ai) [![Gemini Flash Antigravity](https://img.shields.io/badge/Gemini%20Flash-Antigravity-4f86f7?logo=google-gemini&logoColor=white)](https://github.com/google-gemini) [![CI](https://github.com/jsglazer/mdviewer/actions/workflows/ci.yml/badge.svg)](https://github.com/jsglazer/mdviewer/actions/workflows/ci.yml) [![CodeQL](https://github.com/jsglazer/mdviewer/actions/workflows/codeql.yml/badge.svg)](https://github.com/jsglazer/mdviewer/actions/workflows/codeql.yml) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/jsglazer/mdviewer/badge)](https://securityscorecards.dev/viewer/?uri=github.com/jsglazer/mdviewer)
 
 A lightweight macOS app for viewing Markdown files. Open a file and it renders instantly; the view updates automatically whenever the file changes on disk.
 
@@ -33,7 +26,7 @@ A lightweight macOS app for viewing Markdown files. Open a file and it renders i
 
 ### Outline (Table of Contents)
 - Sidebar panel listing all headings (h1–h5) with collapse/expand controls
-- Clicking a heading scrolls the reading pane to that section
+- Clicking a heading scrolls the reading pane to that section and briefly highlights the target line — in the same colour the Outline uses for the current entry — so the destination is easy to spot
 - The current heading and all its ancestors are highlighted as you read or navigate, so you always know where you are in the document structure
 
 ### Display Options
