@@ -15,6 +15,7 @@ A lightweight macOS app for viewing Markdown files. Open a file and it renders i
 
 ### Live Reload
 - Watches the open file for changes and re-renders in place — no manual refresh needed
+- **Reload** button re-reads the current file from disk on demand
 - **Jump to New** mode scrolls to the first changed line on each reload
 - **Tail** mode keeps the bottom of the document in view (useful for logs)
 
@@ -27,18 +28,22 @@ A lightweight macOS app for viewing Markdown files. Open a file and it renders i
 ### Outline (Table of Contents)
 - Sidebar panel listing all headings (h1–h5) with collapse/expand controls
 - Clicking a heading scrolls the reading pane to that section and briefly highlights the target line — in the same colour the Outline uses for the current entry — so the destination is easy to spot
+- Clicking an entry keeps keyboard focus on the Outline, so you can then walk the headings without the mouse: **↑ / ↓** move between entries (scrolling the document to match) and **← / →** collapse / expand grouped headings
 - The current heading and all its ancestors are highlighted as you read or navigate, so you always know where you are in the document structure
 
 ### Display Options
 - **Line Numbers** — toggle gutter line numbers keyed to Markdown source lines
 - **Show CSS** — inspect the full stylesheet applied to the current document
 - **Custom CSS** — inject your own styles via Settings
+- The app version is shown at the top-right of the toolbar
 
 ### Keyboard Shortcuts
 - `⌘F` — Find
 - `⌘↑` / `⌘↓` — Jump to top / bottom
 - `⌘←` / `⌘→` — Page up / page down
 - `↑` / `↓` (in find bar) — previous / next match
+- `↑` / `↓` (in Outline) — previous / next heading
+- `←` / `→` (in Outline) — collapse / expand grouped heading
 - `Escape` — close find
 
 A full shortcut reference is available from the Settings panel.
