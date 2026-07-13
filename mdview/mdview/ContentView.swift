@@ -105,10 +105,17 @@ struct ContentView: View {
 
     // MARK: - Ribbon
 
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    }
+
     private var ribbonBar: some View {
         ZStack {
             // Left + right anchored buttons
             HStack(spacing: 4) {
+                RibbonButton(icon: "arrow.clockwise", label: "Reload", isActive: false) {
+                    reloadFile()
+                }
                 RibbonButton(
                     icon: "arrow.up.to.line", label: "Jump to New",
                     isActive: autoScrollMode == .firstNew
@@ -142,6 +149,12 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Settings")
+
+                Text("v\(appVersion)")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 2)
+                    .help("mdview version")
             }
 
             // Search field centred in the available space
@@ -225,6 +238,13 @@ struct ContentView: View {
         findResults = []
         currentFindIndex = nil
         markdownController.clearFind()
+    }
+
+    private func reloadFile() {
+        guard let url = fileURL,
+            let updated = try? String(contentsOf: url, encoding: .utf8)
+        else { return }
+        text = process(updated)
     }
 
     private func showDocumentCSS() {
