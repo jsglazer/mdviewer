@@ -194,6 +194,12 @@ final class PrintPreviewController {
                 minSize: NSSize(width: 480, height: 420),
                 miniaturizable: true
             )
+            // NSPanel hides itself whenever the app deactivates. For a transient
+            // inspector that's fine, but a preview you print from must survive
+            // switching apps — and anything that steals activation while it opens
+            // (a crash reporter, a notification) would otherwise make it vanish the
+            // moment it appeared, looking exactly like the button did nothing.
+            created.hidesOnDeactivate = false
             created.contentView = NSHostingView(rootView: PrintPreviewView(model: model))
             panel = created
         }

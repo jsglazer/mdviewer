@@ -19,6 +19,7 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
     enum RenderError: LocalizedError, Equatable {
         case templateMissing
         case printOperationFailed
+        case timedOut
         case cancelled
 
         var errorDescription: String? {
@@ -27,6 +28,8 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
                 return "The render template is missing from the app bundle."
             case .printOperationFailed:
                 return "macOS could not paginate this document for printing."
+            case .timedOut:
+                return "Preparing the preview timed out. Try again."
             case .cancelled:
                 return "The preview was superseded by a newer one."
             }
@@ -39,6 +42,11 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
     /// Settle time between "ready" and pagination, so the web process has painted
     /// the new content before it is asked to render it for print.
     private static let settleDelay = 0.15
+    /// Ceiling on a whole render. Every stage here depends on a callback from
+    /// WebKit or AppKit's print machinery, and if one never arrives the model
+    /// would sit in `isRendering` forever — silently swallowing every later
+    /// Print/Export click. The watchdog turns that into a visible error instead.
+    private static let watchdogTimeout = 45.0
 
     private var webView: WKWebView?
     private var hostWindow: NSWindow?
@@ -48,6 +56,7 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
     private var retryUsed = false
     private var pendingTmpURL: URL?
     private var pendingMargins: PDFStamper.Margins?
+    private var watchdog: DispatchWorkItem?
 
     func render(_ job: Job, completion: @escaping (Result<Data, Error>) -> Void) {
         finish(.failure(RenderError.cancelled))
@@ -67,6 +76,7 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
             return
         }
         readyAttempts = 0
+        armWatchdog()
 
         let info = PrintSettings.shared.printInfo
         let contentWidth = max(info.paperSize.width - info.leftMargin - info.rightMargin, 72)
@@ -201,9 +211,18 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
             didRun: #selector(printOperationDidRun(_:success:contextInfo:)), contextInfo: nil)
     }
 
+    /// AppKit spawns a worker thread for the modal print operation and calls this
+    /// back **on that thread**. Everything below touches the WebView, AppKit
+    /// drawing and `@Published` state, so it all has to hop back to main first —
+    /// tearing the WebView down from the worker crashes inside WebKit's window
+    /// observer.
     @objc private func printOperationDidRun(
         _ operation: NSPrintOperation, success: Bool, contextInfo: UnsafeMutableRawPointer?
     ) {
+        DispatchQueue.main.async { [weak self] in self?.handlePrintFinished(success: success) }
+    }
+
+    private func handlePrintFinished(success: Bool) {
         guard let tmpURL = pendingTmpURL, let margins = pendingMargins, let job else { return }
         pendingTmpURL = nil
         let data = success ? try? Data(contentsOf: tmpURL) : nil
@@ -235,7 +254,20 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
         return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private func armWatchdog() {
+        watchdog?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self, self.completion != nil else { return }
+            self.finish(.failure(RenderError.timedOut))
+            self.tearDown()
+        }
+        watchdog = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.watchdogTimeout, execute: item)
+    }
+
     private func finish(_ result: Result<Data, Error>) {
+        watchdog?.cancel()
+        watchdog = nil
         let handler = completion
         completion = nil
         job = nil
@@ -246,7 +278,10 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
         webView?.navigationDelegate = nil
         webView?.removeFromSuperview()
         webView = nil
-        hostWindow?.orderOut(nil)
+        // close(), not just orderOut() — the window is created with
+        // isReleasedWhenClosed = false, so merely ordering it out leaves a live
+        // off-screen NSWindow behind on every render.
+        hostWindow?.close()
         hostWindow = nil
         pendingTmpURL = nil
         pendingMargins = nil
