@@ -39,6 +39,12 @@ struct KeyboardShortcutsView: View {
                 Row(key: "⌘ ⇧ K", desc: "Keyboard Shortcuts (this window)"),
             ]),
         Section(
+            title: "Print",
+            rows: [
+                Row(key: "⌘ P", desc: "Print… (opens Print Preview)"),
+                Row(key: "⌘ ⇧ E", desc: "Export as PDF…"),
+            ]),
+        Section(
             title: "Find",
             rows: [
                 Row(key: "⌘ F", desc: "Open Find"),

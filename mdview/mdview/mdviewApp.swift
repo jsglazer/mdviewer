@@ -12,6 +12,8 @@ extension Notification.Name {
     static let mdviewZoomIn = Notification.Name("mdviewZoomIn")
     static let mdviewZoomOut = Notification.Name("mdviewZoomOut")
     static let mdviewResetZoom = Notification.Name("mdviewResetZoom")
+    static let mdviewPrint = Notification.Name("mdviewPrint")
+    static let mdviewExportPDF = Notification.Name("mdviewExportPDF")
 }
 
 @main
@@ -44,6 +46,17 @@ struct mdviewApp: App {
                     SettingsPanelController.shared.show()
                 }
                 .keyboardShortcut(",", modifiers: .command)
+            }
+            CommandGroup(replacing: .printItem) {
+                Button("Print…") {
+                    NotificationCenter.default.post(name: .mdviewPrint, object: nil)
+                }
+                .keyboardShortcut("p", modifiers: .command)
+
+                Button("Export as PDF…") {
+                    NotificationCenter.default.post(name: .mdviewExportPDF, object: nil)
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
             }
             CommandGroup(after: .pasteboard) {
                 Divider()

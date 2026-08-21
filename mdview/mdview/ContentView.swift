@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var tocItems: [TOCItem] = []
     @State private var activeHeadingChain: [String] = []
     @State private var markdownController = MarkdownController()
+    @State private var hostWindow: NSWindow?
     @FocusState private var findFocused: Bool
 
     var body: some View {
@@ -52,7 +53,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 520, minHeight: 320)
-        .background(WindowFrameSaver())
+        .background(WindowFrameSaver { hostWindow = $0 })
         .onAppear {
             text = process(document.text)
             if let url = fileURL {
@@ -101,6 +102,12 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .mdviewResetZoom)) { _ in
             markdownController.resetZoom()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .mdviewPrint)) { _ in
+            if isFrontDocument { openPrintPreview(intent: .printing) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .mdviewExportPDF)) { _ in
+            if isFrontDocument { openPrintPreview(intent: .exportPDF) }
+        }
     }
 
     // MARK: - Ribbon
@@ -132,6 +139,12 @@ struct ContentView: View {
                     showLineNumbers.toggle()
                 }
                 Spacer()
+                RibbonButton(icon: "printer", label: "Print", isActive: false) {
+                    openPrintPreview(intent: .printing)
+                }
+                RibbonButton(icon: "arrow.down.doc", label: "PDF", isActive: false) {
+                    openPrintPreview(intent: .exportPDF)
+                }
                 RibbonButton(icon: "doc.plaintext", label: "Show CSS", isActive: false) {
                     showDocumentCSS()
                 }
@@ -247,6 +260,25 @@ struct ContentView: View {
         text = process(updated)
     }
 
+    // Menu commands broadcast to every open document; only the frontmost one
+    // should act on them, or a background tab would hijack the shared panel.
+    private var isFrontDocument: Bool {
+        guard let hostWindow else { return false }
+        return NSApp.keyWindow === hostWindow || NSApp.mainWindow === hostWindow
+    }
+
+    private func openPrintPreview(intent: PrintPreviewIntent) {
+        PrintPreviewController.shared.show(
+            source: PrintSource(
+                markdown: text,
+                baseDir: fileURL?.deletingLastPathComponent(),
+                customCSS: customCSS,
+                showLineNumbers: showLineNumbers,
+                title: fileURL?.lastPathComponent ?? "Untitled"
+            ),
+            intent: intent)
+    }
+
     private func showDocumentCSS() {
         markdownController.getDocumentCSS { css in
             CSSPanelController.shared.show(css: css)
@@ -332,10 +364,13 @@ private struct RibbonButton: View {
 // persistence. macOS saves the frame to UserDefaults under the autosave name and
 // restores it on the next launch.
 private struct WindowFrameSaver: NSViewRepresentable {
+    var onWindow: (NSWindow?) -> Void = { _ in }
+
     func makeNSView(context: Context) -> NSView {
         let v = NSView()
         DispatchQueue.main.async {
             v.window?.setFrameAutosaveName("mdviewDocumentWindow")
+            onWindow(v.window)
         }
         return v
     }

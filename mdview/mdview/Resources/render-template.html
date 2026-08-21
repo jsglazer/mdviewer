@@ -141,6 +141,51 @@
   @media (prefers-color-scheme: dark) {
     .line-num { color: #555; }
   }
+  /* ── Print mode ──────────────────────────────────────────────────────────
+     Applied only to the off-screen WebView that generates print / PDF output.
+     Forces the light palette (ink on white), drops the on-screen chrome the
+     printed page has no use for, and stops long code or tables running off the
+     edge of the paper. */
+  body.print-mode {
+    --bg: #ffffff;
+    --fg: #111111;
+    --code-bg: #f6f8fa;
+    --border: #d0d7de;
+    --link: #0b5ed7;
+    --blockquote-border: #d0d7de;
+    --blockquote-fg: #57606a;
+    background: #ffffff;
+    color: #111111;
+    font-size: 11pt;
+  }
+  body.print-mode #content { padding: 0; }
+  body.print-mode.line-numbers #content { padding-left: 4em; }
+  body.print-mode a { color: #0b5ed7; text-decoration: underline; }
+  body.print-mode .md-print-url {
+    color: #57606a;
+    font-size: 0.85em;
+    word-break: break-all;
+  }
+  body.print-mode mark.find-result,
+  body.print-mode .md-heading-active {
+    background: none;
+    color: inherit;
+    outline: none;
+  }
+  body.print-mode pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-x: visible;
+  }
+  body.print-mode table { table-layout: fixed; word-wrap: break-word; }
+  body.print-mode .line-num { color: #999; }
+  /* Pagination hints — honoured by WebKit when the print operation paginates. */
+  @media print {
+    pre, blockquote, table, figure, img { break-inside: avoid; page-break-inside: avoid; }
+    tr, li { break-inside: avoid; page-break-inside: avoid; }
+    h1, h2, h3, h4, h5, h6 { break-after: avoid; page-break-after: avoid; }
+    p, li, blockquote { orphans: 2; widows: 2; }
+  }
 </style>
 </head>
 <body>
@@ -539,6 +584,52 @@ window.scrollToMatch = function(index) {
     _activeMarkIndex = index;
     _postActiveHeadings(el);
   }
+};
+
+// ── Print mode ──────────────────────────────────────────────────────────────
+// Called once by PrintRenderer on the off-screen print WebView. Switches the
+// document to the ink-on-white palette and, when asked, spells out link targets
+// after each link (a printed link is not clickable).
+let _printFontsReady = false;
+
+window.setPrintMode = function(opts) {
+  document.body.classList.add('print-mode');
+  // Re-arm after the content and print palette are in place, so this tracks the
+  // fonts *this* document needs rather than whatever the empty template loaded.
+  _printFontsReady = false;
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function() { _printFontsReady = true; });
+  } else {
+    _printFontsReady = true;
+  }
+  document.querySelectorAll('#content span.md-print-url').forEach(function(el) { el.remove(); });
+  if (!opts || !opts.linkURLs) return;
+  document.querySelectorAll('#content a[href]').forEach(function(a) {
+    const href = a.getAttribute('href') || '';
+    // In-page anchors and links that already read as their own URL add nothing.
+    if (!href || href.charAt(0) === '#' || a.textContent.trim() === href) return;
+    const span = document.createElement('span');
+    span.className = 'md-print-url';
+    span.textContent = ' (' + href + ')';
+    a.parentNode.insertBefore(span, a.nextSibling);
+  });
+};
+
+// True once fonts have settled and every referenced image has loaded — images
+// arrive asynchronously via the custom scheme handler, and paginating early
+// leaves blank boxes and reflowed text.
+window.printReady = function() {
+  if (!_printFontsReady) return false;
+  const imgs = Array.prototype.slice.call(document.images);
+  for (let i = 0; i < imgs.length; i++) {
+    if (!imgs[i].complete) return false;
+  }
+  return true;
+};
+
+// Full laid-out document height, used to size the print view before pagination.
+window.contentHeight = function() {
+  return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
 };
 
 // Inject or update custom user CSS in <head>
