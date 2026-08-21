@@ -31,6 +31,19 @@ A lightweight macOS app for viewing Markdown files. Open a file and it renders i
 - Clicking an entry keeps keyboard focus on the Outline, so you can then walk the headings without the mouse: **↑ / ↓** move between entries (scrolling the document to match) and **← / →** collapse / expand grouped headings
 - The current heading and all its ancestors are highlighted as you read or navigate, so you always know where you are in the document structure
 
+### Printing and PDF Export
+- **Print…** (`⌘P`) and **Export as PDF…** (`⇧⌘E`) both open a shared **Print Preview** window
+- The preview is not an approximation: the document is rendered through the real print pipeline and the window displays that exact PDF, so what you see is byte-for-byte what gets printed or saved
+- **Page Setup…** sets paper, orientation and margins (0.75″ by default, which suits Markdown better than the usual 1″); the choices persist between launches
+- Page navigation, **Save PDF…** and **Print…** are all in the preview window
+- Four page extras can be toggled on and off, each re-rendering the preview live and remembered between sessions:
+  - **Page numbers** — a "Page N of M" footer *(on by default)*
+  - **Title header** — the file name in the page header *(on by default)*
+  - **Print date** — the date printed, alongside the title *(on by default)*
+  - **Link URLs** — prints each external link's target in parentheses after it, since a printed link isn't clickable *(off by default)*
+- Printed output always uses the light theme, whatever appearance the app is running in
+- Code blocks, tables, blockquotes and images are kept from splitting across a page break, and headings stay with the content that follows them
+
 ### Display Options
 - **Line Numbers** — toggle gutter line numbers keyed to Markdown source lines
 - **Show CSS** — inspect the full stylesheet applied to the current document
@@ -38,6 +51,8 @@ A lightweight macOS app for viewing Markdown files. Open a file and it renders i
 - The app version is shown at the top-right of the toolbar
 
 ### Keyboard Shortcuts
+- `⌘P` — Print… (opens Print Preview)
+- `⇧⌘E` — Export as PDF…
 - `⌘F` — Find
 - `⌘↑` / `⌘↓` — Jump to top / bottom
 - `⌘←` / `⌘→` — Page up / page down
