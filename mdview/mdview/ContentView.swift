@@ -262,9 +262,10 @@ struct ContentView: View {
 
     // Menu commands broadcast to every open document; only the frontmost one
     // should act on them, or a background tab would hijack the shared panel.
+    // The tracker answers this without depending on NSApp.keyWindow, which is the
+    // Print Preview panel while it has focus and nil whenever the app is inactive.
     private var isFrontDocument: Bool {
-        guard let hostWindow else { return false }
-        return NSApp.keyWindow === hostWindow || NSApp.mainWindow === hostWindow
+        FrontDocumentTracker.shared.isFront(hostWindow)
     }
 
     private func openPrintPreview(intent: PrintPreviewIntent) {
@@ -363,18 +364,37 @@ private struct RibbonButton: View {
 // Hooks into the underlying NSWindow to enable automatic frame (size + position)
 // persistence. macOS saves the frame to UserDefaults under the autosave name and
 // restores it on the next launch.
+// Reports its window whenever the view actually joins one.
+//
+// Sampling `window` once on the next runloop turn is a race: if the view is not in
+// a window yet, the sample is nil and never retried. That left the document unable
+// to tell whether it was frontmost, so every Print / Export menu command was
+// silently dropped for the rest of that launch — and the frame autosave name went
+// unset too, quietly losing window-position persistence.
+private final class WindowReportingView: NSView {
+    var onWindow: (NSWindow?) -> Void = { _ in }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        let joined = window
+        joined?.setFrameAutosaveName("mdviewDocumentWindow")
+        FrontDocumentTracker.shared.register(joined)
+        // Out of the layout pass before touching SwiftUI state.
+        DispatchQueue.main.async { [onWindow] in onWindow(joined) }
+    }
+}
+
 private struct WindowFrameSaver: NSViewRepresentable {
     var onWindow: (NSWindow?) -> Void = { _ in }
 
-    func makeNSView(context: Context) -> NSView {
-        let v = NSView()
-        DispatchQueue.main.async {
-            v.window?.setFrameAutosaveName("mdviewDocumentWindow")
-            onWindow(v.window)
-        }
-        return v
+    func makeNSView(context: Context) -> WindowReportingView {
+        let view = WindowReportingView()
+        view.onWindow = onWindow
+        return view
     }
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: WindowReportingView, context: Context) {
+        nsView.onWindow = onWindow
+    }
 }
 
 #Preview {
