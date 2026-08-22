@@ -35,6 +35,7 @@ A lightweight macOS app for viewing Markdown files. Open a file and it renders i
 - **Print…** (`⌘P`) and **Export as PDF…** (`⇧⌘E`) both open a shared **Print Preview** window
 - The preview is not an approximation: the document is rendered through the real print pipeline and the window displays that exact PDF, so what you see is byte-for-byte what gets printed or saved
 - **Page Setup…** sets paper, orientation and margins (0.75″ by default, which suits Markdown better than the usual 1″); the choices persist between launches
+- **Scale** control shrinks content down to fit wide tables or code blocks on the page, or enlarges it for readability — 50%–200% in 10% steps, persisted between launches
 - Page navigation, **Save PDF…** and **Print…** are all in the preview window
 - Four page extras can be toggled on and off, each re-rendering the preview live and remembered between sessions:
   - **Page numbers** — a "Page N of M" footer *(on by default)*
