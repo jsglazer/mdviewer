@@ -35,6 +35,27 @@ final class PrintPreviewModel: NSObject, ObservableObject {
             regenerate()
         }
     }
+    @Published var scalePercent: Int = PrintSettings.shared.scalePercent {
+        didSet {
+            guard scalePercent != oldValue else { return }
+            PrintSettings.shared.scalePercent = scalePercent
+            regenerate()
+        }
+    }
+
+    private static let scaleStep = 10
+    private static let scaleRange = 50...200
+
+    var canDecreaseScale: Bool { scalePercent > Self.scaleRange.lowerBound }
+    var canIncreaseScale: Bool { scalePercent < Self.scaleRange.upperBound }
+
+    func decreaseScale() {
+        scalePercent = max(Self.scaleRange.lowerBound, scalePercent - Self.scaleStep)
+    }
+
+    func increaseScale() {
+        scalePercent = min(Self.scaleRange.upperBound, scalePercent + Self.scaleStep)
+    }
 
     let pdfView = PDFView()
     weak var hostWindow: NSWindow?
@@ -76,7 +97,8 @@ final class PrintPreviewModel: NSObject, ObservableObject {
 
         let job = PrintRenderer.Job(
             markdown: source.markdown, baseDir: source.baseDir, customCSS: source.customCSS,
-            showLineNumbers: source.showLineNumbers, title: source.title, extras: extras)
+            showLineNumbers: source.showLineNumbers, title: source.title, extras: extras,
+            scalePercent: scalePercent)
         renderer.render(job) { [weak self] result in
             guard let self else { return }
             if case .failure(let error) = result,

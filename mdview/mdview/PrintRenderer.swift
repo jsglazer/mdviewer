@@ -14,6 +14,7 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
         let showLineNumbers: Bool
         let title: String
         let extras: PrintExtras
+        let scalePercent: Int
     }
 
     enum RenderError: LocalizedError, Equatable {
@@ -192,6 +193,12 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
         if job.extras.hasHeader { info.topMargin += PrintLayout.bandHeight }
         if job.extras.hasFooter { info.bottomMargin += PrintLayout.bandHeight }
         info.jobDisposition = .save
+        // Content lays out at the full printable width regardless of scale; letting
+        // AppKit's own view-printing pagination apply scalingFactor here means a
+        // shrink fits more of that layout onto each page and an enlarge fits less,
+        // with no need to re-measure content height per scale.
+        info.scalingFactor = CGFloat(job.scalePercent) / 100.0
+        info.isHorizontallyCentered = true
 
         let tmpURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdview-print-\(UUID().uuidString).pdf")

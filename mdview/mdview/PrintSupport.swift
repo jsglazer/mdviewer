@@ -121,6 +121,19 @@ final class PrintSettings {
         let orientation = printInfo.orientation == .landscape ? "Landscape" : "Portrait"
         return "\(name) · \(orientation)"
     }
+
+    private static let scaleKey = "printContentScalePercent"
+
+    /// Content scaling applied when printing/exporting (50-200), persisted across
+    /// launches. Lets wide tables or code blocks shrink to fit the page, or text
+    /// grow larger, independent of the page-fill layout the renderer already does.
+    var scalePercent: Int {
+        get {
+            let stored = UserDefaults.standard.integer(forKey: Self.scaleKey)
+            return stored == 0 ? 100 : stored
+        }
+        set { UserDefaults.standard.set(newValue, forKey: Self.scaleKey) }
+    }
 }
 
 /// Draws the header / footer band onto an already-paginated PDF.

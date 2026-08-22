@@ -103,12 +103,41 @@ struct PrintPreviewView: View {
             HStack(spacing: 10) {
                 Button("Page Setup…") { model.pageSetup() }
                     .disabled(model.isRendering)
+                scaleControl
                 Spacer()
                 actionButtons
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
+    }
+
+    private var scaleControl: some View {
+        HStack(spacing: 4) {
+            Text("Scale:")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Button {
+                model.decreaseScale()
+            } label: {
+                Image(systemName: "minus.circle")
+            }
+            .buttonStyle(.borderless)
+            .disabled(model.isRendering || !model.canDecreaseScale)
+            .help("Shrink to fit more on the page")
+            Text("\(model.scalePercent)%")
+                .font(.callout)
+                .monospacedDigit()
+                .frame(minWidth: 40)
+            Button {
+                model.increaseScale()
+            } label: {
+                Image(systemName: "plus.circle")
+            }
+            .buttonStyle(.borderless)
+            .disabled(model.isRendering || !model.canIncreaseScale)
+            .help("Enlarge the printed content")
+        }
     }
 
     @ViewBuilder
