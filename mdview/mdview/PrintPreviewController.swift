@@ -45,6 +45,7 @@ final class PrintPreviewModel: NSObject, ObservableObject {
 
     private static let scaleStep = 10
     private static let scaleRange = 50...200
+    private static let fitPagesRange = 1...20
 
     var canDecreaseScale: Bool { scalePercent > Self.scaleRange.lowerBound }
     var canIncreaseScale: Bool { scalePercent < Self.scaleRange.upperBound }
@@ -57,6 +58,42 @@ final class PrintPreviewModel: NSObject, ObservableObject {
         scalePercent = min(Self.scaleRange.upperBound, scalePercent + Self.scaleStep)
     }
 
+    /// "Fit to N pages wide/tall" — a calculator that solves for the scale needed to
+    /// hit the requested page counts and applies it through `scalePercent`, rather
+    /// than the user hunting for the right percentage by hand.
+    @Published var fitPagesWide: Int = 1 {
+        didSet {
+            guard fitPagesWide != oldValue else { return }
+            applyFitToPages()
+        }
+    }
+    @Published var fitPagesTall: Int = 1 {
+        didSet {
+            guard fitPagesTall != oldValue else { return }
+            applyFitToPages()
+        }
+    }
+    var fitPagesRange: ClosedRange<Int> { Self.fitPagesRange }
+    var canApplyFitToPages: Bool { lastContentHeight != nil }
+
+    /// Content always lays out at the printable width, so pages-wide is an exact
+    /// cap on scale (no measurement needed); pages-tall is solved from the content
+    /// height measured on the most recent render — layout doesn't depend on scale,
+    /// so that measurement stays valid across further fit-to-page requests. This
+    /// may be an over- or under-shoot of the *actual* resulting page count when
+    /// indivisible blocks (code, tables, images) force an early page break, since
+    /// pagination doesn't fill every page uniformly.
+    private func applyFitToPages() {
+        guard let contentHeight = lastContentHeight, let availableHeight = lastAvailableHeight,
+            contentHeight > 0, availableHeight > 0
+        else { return }
+        let fromWidth = fitPagesWide * 100
+        let fromHeight = Int(
+            ((availableHeight * CGFloat(fitPagesTall)) / contentHeight * 100).rounded())
+        let target = min(fromWidth, fromHeight)
+        scalePercent = min(max(target, Self.scaleRange.lowerBound), Self.scaleRange.upperBound)
+    }
+
     let pdfView = PDFView()
     weak var hostWindow: NSWindow?
 
@@ -64,6 +101,8 @@ final class PrintPreviewModel: NSObject, ObservableObject {
     private var source: PrintSource?
     private var pdfData: Data?
     private var pendingRerender = false
+    private var lastContentHeight: CGFloat?
+    private var lastAvailableHeight: CGFloat?
 
     var canAct: Bool { pdfData != nil && !isRendering }
 
@@ -108,7 +147,7 @@ final class PrintPreviewModel: NSObject, ObservableObject {
             }
             self.isRendering = false
             switch result {
-            case .success(let data): self.accept(data)
+            case .success(let result): self.accept(result)
             case .failure(let error): self.reject(error)
             }
             if self.pendingRerender {
@@ -118,9 +157,11 @@ final class PrintPreviewModel: NSObject, ObservableObject {
         }
     }
 
-    private func accept(_ data: Data) {
-        pdfData = data
-        let doc = PDFDocument(data: data)
+    private func accept(_ result: PrintRenderer.RenderResult) {
+        pdfData = result.data
+        lastContentHeight = result.contentHeight
+        lastAvailableHeight = result.availableHeight
+        let doc = PDFDocument(data: result.data)
         pdfView.document = doc
         pageCount = doc?.pageCount ?? 0
         currentPage = pageCount > 0 ? 1 : 0

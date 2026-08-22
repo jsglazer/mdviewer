@@ -107,9 +107,42 @@ struct PrintPreviewView: View {
                 Spacer()
                 actionButtons
             }
+
+            HStack(spacing: 6) {
+                fitToPagesControl
+                Spacer()
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
+    }
+
+    private var fitToPagesControl: some View {
+        HStack(spacing: 6) {
+            Text("Fit to:")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Stepper(value: $model.fitPagesWide, in: model.fitPagesRange) {
+                Text("\(model.fitPagesWide)")
+                    .font(.callout)
+                    .monospacedDigit()
+                    .frame(minWidth: 18)
+            }
+            Text("×")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Stepper(value: $model.fitPagesTall, in: model.fitPagesRange) {
+                Text("\(model.fitPagesTall)")
+                    .font(.callout)
+                    .monospacedDigit()
+                    .frame(minWidth: 18)
+            }
+            Text(model.fitPagesTall == 1 && model.fitPagesWide == 1 ? "page" : "pages")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .disabled(model.isRendering || !model.canApplyFitToPages)
+        .help("Set the scale that fits the document within this many pages wide × tall")
     }
 
     private var scaleControl: some View {

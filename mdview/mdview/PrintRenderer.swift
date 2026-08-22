@@ -17,6 +17,16 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
         let scalePercent: Int
     }
 
+    /// A finished render, plus the unscaled measurements behind it. `contentHeight`
+    /// and `availableHeight` don't depend on `scalePercent` — layout happens before
+    /// scaling is applied — so callers can solve for "what scale fits N pages" from
+    /// a single render instead of needing a dedicated measurement pass.
+    struct RenderResult {
+        let data: Data
+        let contentHeight: CGFloat
+        let availableHeight: CGFloat
+    }
+
     enum RenderError: LocalizedError, Equatable {
         case templateMissing
         case printOperationFailed
@@ -52,14 +62,16 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
     private var webView: WKWebView?
     private var hostWindow: NSWindow?
     private var job: Job?
-    private var completion: ((Result<Data, Error>) -> Void)?
+    private var completion: ((Result<RenderResult, Error>) -> Void)?
     private var readyAttempts = 0
     private var retryUsed = false
     private var pendingTmpURL: URL?
     private var pendingMargins: PDFStamper.Margins?
+    private var pendingContentHeight: CGFloat?
+    private var pendingAvailableHeight: CGFloat?
     private var watchdog: DispatchWorkItem?
 
-    func render(_ job: Job, completion: @escaping (Result<Data, Error>) -> Void) {
+    func render(_ job: Job, completion: @escaping (Result<RenderResult, Error>) -> Void) {
         finish(.failure(RenderError.cancelled))
         self.job = job
         self.completion = completion
@@ -200,6 +212,9 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
         info.scalingFactor = CGFloat(job.scalePercent) / 100.0
         info.isHorizontallyCentered = true
 
+        pendingContentHeight = contentHeight
+        pendingAvailableHeight = info.paperSize.height - info.topMargin - info.bottomMargin
+
         let tmpURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdview-print-\(UUID().uuidString).pdf")
         info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL.rawValue] = tmpURL
@@ -230,7 +245,9 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
     }
 
     private func handlePrintFinished(success: Bool) {
-        guard let tmpURL = pendingTmpURL, let margins = pendingMargins, let job else { return }
+        guard let tmpURL = pendingTmpURL, let margins = pendingMargins, let job,
+            let contentHeight = pendingContentHeight, let availableHeight = pendingAvailableHeight
+        else { return }
         pendingTmpURL = nil
         let data = success ? try? Data(contentsOf: tmpURL) : nil
         try? FileManager.default.removeItem(at: tmpURL)
@@ -249,10 +266,13 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
             return
         }
         tearDown()
+        let stamped = PDFStamper.stamp(
+            data, extras: job.extras, title: job.title, date: Date(), margins: margins)
         finish(
             .success(
-                PDFStamper.stamp(
-                    data, extras: job.extras, title: job.title, date: Date(), margins: margins)))
+                RenderResult(
+                    data: stamped, contentHeight: contentHeight, availableHeight: availableHeight))
+        )
     }
 
     private static func isBlank(_ data: Data) -> Bool {
@@ -272,7 +292,7 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.watchdogTimeout, execute: item)
     }
 
-    private func finish(_ result: Result<Data, Error>) {
+    private func finish(_ result: Result<RenderResult, Error>) {
         watchdog?.cancel()
         watchdog = nil
         let handler = completion
@@ -292,6 +312,8 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
         hostWindow = nil
         pendingTmpURL = nil
         pendingMargins = nil
+        pendingContentHeight = nil
+        pendingAvailableHeight = nil
     }
 
     private static func jsString(_ value: String) -> String? {
