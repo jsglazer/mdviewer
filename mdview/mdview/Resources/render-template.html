@@ -82,6 +82,17 @@
     font-size: 0.875em;
     padding: 0;
   }
+  /* YAML frontmatter block (see _renderFrontmatter) — kept visually distinct from
+     the document body rather than parsed as Markdown prose. */
+  pre.md-frontmatter {
+    font-size: 0.8125em;
+    color: var(--blockquote-fg);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin-bottom: 1.2em;
+  }
+  pre.md-frontmatter code { color: inherit; }
+  pre.md-frontmatter strong { color: var(--fg); font-weight: 600; }
   table {
     border-collapse: collapse;
     margin: 0.8em 0;
@@ -314,9 +325,46 @@ md.renderer.rules.heading_open = function(tokens, idx, options, env, self) {
     : self.renderToken(tokens, idx, options);
 };
 
+// ── YAML frontmatter ────────────────────────────────────────────────────────
+// Frontmatter (a --- / key: value / --- block at the very top of the file) is
+// not part of the Markdown spec — CommonMark has no concept of it, so without
+// this, `---` parses as two thematic breaks (<hr>) with the key/value lines
+// squashed into one soft-wrapped paragraph between them. This is a display
+// concern only: it's rendered as a distinct metadata block, not parsed as YAML
+// or acted on, so no bundled YAML library is needed.
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)[ \t]*\r?\n?/;
+
+function _escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function _renderFrontmatter(yaml) {
+  const lines = yaml.split(/\r?\n/).map(function(line) {
+    const escaped = _escapeHtml(line);
+    // Cosmetic only: bold a leading "key:" so the block reads like metadata,
+    // not a real YAML parse — a value line that happens to match is harmless.
+    const m = escaped.match(/^(\s*)([A-Za-z0-9_.-]+:)(\s|$)/);
+    return m ? m[1] + '<strong>' + m[2] + '</strong>' + escaped.slice(m[0].length) : escaped;
+  });
+  return '<pre class="md-frontmatter" data-md-line="0"><code>' + lines.join('\n') + '</code></pre>';
+}
+
 function render(markdown) {
   _headingIdCount = {};
-  document.getElementById('content').innerHTML = md.render(markdown);
+  let body = markdown;
+  let frontmatterHtml = '';
+  const m = FRONTMATTER_RE.exec(markdown);
+  // Require the first captured line to look like "key: ..." so a document that
+  // deliberately opens with a plain horizontal rule isn't swallowed as metadata.
+  if (m && /^[^\s:][^:\n]*:/.test(m[1])) {
+    frontmatterHtml = _renderFrontmatter(m[1]);
+    // Pad with as many blank lines as the frontmatter consumed, rather than just
+    // slicing it off, so `data-md-line` on the rest of the document still lines
+    // up with the original file (line numbers, "Jump to New" scroll-to-change).
+    const consumedLines = (m[0].match(/\n/g) || []).length;
+    body = '\n'.repeat(consumedLines) + markdown.slice(m[0].length);
+  }
+  document.getElementById('content').innerHTML = frontmatterHtml + md.render(body);
 }
 
 // ── Line numbers ────────────────────────────────────────────────────────────
