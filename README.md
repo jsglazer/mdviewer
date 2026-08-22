@@ -12,6 +12,7 @@ A lightweight macOS app for viewing Markdown files. Open a file and it renders i
 - Math typesetting via [KaTeX](https://katex.org) — inline (`$…$`) and display (`$$…$$`)
 - Relative image paths resolved automatically so local images display correctly
 - Light and dark mode, following the system appearance
+- YAML frontmatter (a `---`/`key: value`/`---` block at the top of a file) is rendered as a distinct metadata block rather than as Markdown prose
 
 ### Live Reload
 - Watches the open file for changes and re-renders in place — no manual refresh needed
