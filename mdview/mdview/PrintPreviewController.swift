@@ -60,21 +60,31 @@ final class PrintPreviewModel: NSObject, ObservableObject {
 
     /// "Fit to N pages wide/tall" — a calculator that solves for the scale needed to
     /// hit the requested page counts and applies it through `scalePercent`, rather
-    /// than the user hunting for the right percentage by hand.
+    /// than the user hunting for the right percentage by hand. Gated behind
+    /// `fitToPagesEnabled` so the wide/tall steppers can sit at their default 1×1
+    /// without silently forcing a scale the user never asked for — without that
+    /// checkbox the app had no way to tell "not using this" from "wants 1×1".
+    @Published var fitToPagesEnabled = false {
+        didSet {
+            guard fitToPagesEnabled != oldValue else { return }
+            if fitToPagesEnabled { applyFitToPages() }
+        }
+    }
     @Published var fitPagesWide: Int = 1 {
         didSet {
             guard fitPagesWide != oldValue else { return }
-            applyFitToPages()
+            if fitToPagesEnabled { applyFitToPages() }
         }
     }
     @Published var fitPagesTall: Int = 1 {
         didSet {
             guard fitPagesTall != oldValue else { return }
-            applyFitToPages()
+            if fitToPagesEnabled { applyFitToPages() }
         }
     }
     var fitPagesRange: ClosedRange<Int> { Self.fitPagesRange }
-    var canApplyFitToPages: Bool { lastContentHeight != nil }
+    var hasMeasuredContent: Bool { lastContentHeight != nil }
+    var canApplyFitToPages: Bool { fitToPagesEnabled && hasMeasuredContent }
 
     /// Content always lays out at the printable width, so pages-wide is an exact
     /// cap on scale (no measurement needed); pages-tall is solved from the content

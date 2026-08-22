@@ -119,15 +119,21 @@ struct PrintPreviewView: View {
 
     private var fitToPagesControl: some View {
         HStack(spacing: 6) {
-            Text("Fit to:")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            Toggle(isOn: $model.fitToPagesEnabled) {
+                Text("Fit to:")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .toggleStyle(.checkbox)
+            .disabled(model.isRendering || !model.hasMeasuredContent)
+            .help("Scale the document to fit within a set number of pages")
             Stepper(value: $model.fitPagesWide, in: model.fitPagesRange) {
                 Text("\(model.fitPagesWide)")
                     .font(.callout)
                     .monospacedDigit()
                     .frame(minWidth: 18)
             }
+            .disabled(model.isRendering || !model.canApplyFitToPages)
             Text("×")
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -137,11 +143,11 @@ struct PrintPreviewView: View {
                     .monospacedDigit()
                     .frame(minWidth: 18)
             }
+            .disabled(model.isRendering || !model.canApplyFitToPages)
             Text(model.fitPagesTall == 1 && model.fitPagesWide == 1 ? "page" : "pages")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
-        .disabled(model.isRendering || !model.canApplyFitToPages)
         .help("Set the scale that fits the document within this many pages wide × tall")
     }
 
