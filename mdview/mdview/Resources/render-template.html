@@ -107,6 +107,57 @@
   tr:nth-child(even) td { background: var(--code-bg); }
   img { max-width: 100%; }
   .katex-display { overflow-x: auto; overflow-y: hidden; }
+  /* Obsidian-style callouts: `> [!type] Title` blockquotes (see obsidian_callout
+     core rule below). --callout-color is an "r, g, b" triplet per type so both
+     the border and the tinted background can share one accent hue. */
+  .callout {
+    border: none;
+    border-left: 4px solid rgb(var(--callout-color, 8, 109, 221));
+    border-radius: 6px;
+    background: rgba(var(--callout-color, 8, 109, 221), 0.1);
+    margin: 0.8em 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  .callout-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5em;
+    padding: 0.5em 1em;
+    font-weight: 600;
+    color: rgb(var(--callout-color, 8, 109, 221));
+  }
+  .callout-icon { flex-shrink: 0; line-height: 1.4; }
+  .callout-title-inner { flex: 1; }
+  .callout-content { padding: 0 1em 0.75em; color: var(--fg); }
+  .callout-content > *:first-child { margin-top: 0; }
+  .callout-content > *:last-child { margin-bottom: 0; }
+  .callout-foldable > .callout-title { cursor: pointer; user-select: none; }
+  .callout-foldable > .callout-title::after {
+    content: '▾';
+    margin-left: auto;
+    transition: transform 0.15s ease;
+  }
+  .callout.callout-collapsed.callout-foldable > .callout-title::after { transform: rotate(-90deg); }
+  .callout.callout-collapsed > .callout-content { display: none; }
+  @media (prefers-color-scheme: dark) {
+    .callout { background: rgba(var(--callout-color, 8, 109, 221), 0.15); }
+  }
+  .callout[data-callout="note"], .callout[data-callout="todo"] { --callout-color: 8, 109, 221; }
+  .callout[data-callout="abstract"], .callout[data-callout="summary"], .callout[data-callout="tldr"] { --callout-color: 0, 191, 188; }
+  .callout[data-callout="info"] { --callout-color: 8, 109, 221; }
+  .callout[data-callout="tip"], .callout[data-callout="hint"], .callout[data-callout="important"] { --callout-color: 0, 191, 188; }
+  .callout[data-callout="success"], .callout[data-callout="check"], .callout[data-callout="done"] { --callout-color: 8, 185, 78; }
+  .callout[data-callout="question"], .callout[data-callout="help"], .callout[data-callout="faq"] { --callout-color: 236, 117, 0; }
+  .callout[data-callout="warning"], .callout[data-callout="caution"], .callout[data-callout="attention"] { --callout-color: 236, 117, 0; }
+  .callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] { --callout-color: 233, 49, 71; }
+  .callout[data-callout="danger"], .callout[data-callout="error"], .callout[data-callout="bug"] { --callout-color: 233, 49, 71; }
+  .callout[data-callout="example"] { --callout-color: 120, 82, 238; }
+  .callout[data-callout="quote"], .callout[data-callout="cite"] { --callout-color: 158, 158, 158; }
+  /* Printed/exported output always shows full content — a collapsed callout on
+     screen shouldn't silently vanish from a PDF. */
+  body.print-mode .callout.callout-collapsed > .callout-content { display: block; }
+  body.print-mode .callout-foldable > .callout-title::after { content: none; }
   mark.find-result {
     background: rgba(255, 200, 0, 0.45);
     color: inherit;
@@ -235,6 +286,102 @@ md.core.ruler.after('inline', 'task-lists', function(state) {
     checkbox.content = '<input type="checkbox" disabled' + (checked ? ' checked' : '') + '> ';
     inlineTok.children.unshift(checkbox);
   });
+});
+
+// ── Obsidian-style callouts ──────────────────────────────────────────────────
+// `> [!type] Title` / `> [!type]+ Title` (foldable, open) / `> [!type]- Title`
+// (foldable, collapsed) blockquotes render as callout boxes, matching Obsidian's
+// callout syntax. Runs right after block parsing (before inline), while a plain
+// paragraph's content is still a raw string — the first line is the marker, any
+// remaining lines/blocks are the callout body.
+const CALLOUT_RE = /^\[!([A-Za-z][\w-]*)\]([+-]?)[ \t]*([^\n]*)\n?([\s\S]*)$/;
+const CALLOUT_ICONS = {
+  note: '📝', todo: '☑️', info: 'ℹ️',
+  abstract: '📋', summary: '📋', tldr: '📋',
+  tip: '💡', hint: '💡', important: '💡',
+  success: '✅', check: '✅', done: '✅',
+  question: '❓', help: '❓', faq: '❓',
+  warning: '⚠️', caution: '⚠️', attention: '⚠️',
+  failure: '❌', fail: '❌', missing: '❌',
+  danger: '⚡', error: '⚡', bug: '🐛',
+  example: '📑', quote: '💬', cite: '💬'
+};
+
+function _findBlockquoteClose(tokens, openIdx) {
+  let depth = 1;
+  for (let k = openIdx + 1; k < tokens.length; k++) {
+    if (tokens[k].type === 'blockquote_open') depth++;
+    else if (tokens[k].type === 'blockquote_close' && --depth === 0) return k;
+  }
+  return -1;
+}
+
+md.core.ruler.after('block', 'obsidian_callout', function(state) {
+  const Token = state.Token;
+  const tokens = state.tokens;
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].type !== 'blockquote_open') continue;
+    if (!tokens[i + 1] || tokens[i + 1].type !== 'paragraph_open') continue;
+    const inlineTok = tokens[i + 2];
+    if (!inlineTok || inlineTok.type !== 'inline') continue;
+    const m = CALLOUT_RE.exec(inlineTok.content);
+    if (!m) continue;
+    const closeIdx = _findBlockquoteClose(tokens, i);
+    if (closeIdx === -1) continue;
+
+    const type = m[1].toLowerCase();
+    const collapsed = m[2] === '-';
+    const foldable = m[2] !== '';
+    const titleText = m[3].trim();
+    const bodyRest = m[4];
+    const level = tokens[i].level;
+    const icon = CALLOUT_ICONS[type] || '📌';
+
+    let cls = 'callout callout-' + type;
+    if (foldable) cls += ' callout-foldable';
+    if (collapsed) cls += ' callout-collapsed';
+    tokens[i].attrJoin('class', cls);
+    tokens[i].attrSet('data-callout', type);
+
+    // Everything between the open/close tags: [paragraph_open, inline, paragraph_close, ...rest]
+    let bodyTokens = tokens.slice(i + 1, closeIdx);
+    if (bodyRest) {
+      inlineTok.content = bodyRest;
+    } else if (bodyTokens.length === 3) {
+      bodyTokens = []; // marker-only callout, no body at all
+    } else {
+      bodyTokens = bodyTokens.slice(3); // drop the now-empty title paragraph, keep what follows
+    }
+
+    const replacement = [];
+    function pushHtml(content) {
+      const t = new Token('html_block', '', 0);
+      t.content = content;
+      t.level = level + 1;
+      t.block = true;
+      replacement.push(t);
+    }
+    pushHtml('<div class="callout-title"><div class="callout-icon">' + icon + '</div><div class="callout-title-inner">');
+    if (titleText) {
+      const titleTok = new Token('inline', '', 0);
+      titleTok.content = titleText;
+      titleTok.level = level + 2;
+      titleTok.children = [];
+      replacement.push(titleTok);
+    } else {
+      pushHtml(type.charAt(0).toUpperCase() + type.slice(1));
+    }
+    pushHtml('</div></div>');
+    if (bodyTokens.length) {
+      pushHtml('<div class="callout-content">');
+      replacement.push(...bodyTokens);
+      pushHtml('</div>');
+    }
+
+    tokens.splice(i + 1, closeIdx - (i + 1), ...replacement);
+    // Deliberately no index skip here: a nested callout inside this one's body
+    // (bodyTokens) still needs the outer loop to reach its blockquote_open.
+  }
 });
 
 // Source map: stamp data-md-line on top-level block open/self-closing tokens
@@ -366,6 +513,15 @@ function render(markdown) {
   }
   document.getElementById('content').innerHTML = frontmatterHtml + md.render(body);
 }
+
+// Click a foldable callout's title bar to toggle it collapsed/expanded.
+// Delegated on document so it survives render() replacing #content's innerHTML.
+document.addEventListener('click', function(e) {
+  const title = e.target.closest && e.target.closest('.callout-title');
+  if (!title) return;
+  const callout = title.closest('.callout.callout-foldable');
+  if (callout) callout.classList.toggle('callout-collapsed');
+});
 
 // ── Line numbers ────────────────────────────────────────────────────────────
 let _lineNumbers = false;
