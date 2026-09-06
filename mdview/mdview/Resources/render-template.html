@@ -158,6 +158,16 @@
      screen shouldn't silently vanish from a PDF. */
   body.print-mode .callout.callout-collapsed > .callout-content { display: block; }
   body.print-mode .callout-foldable > .callout-title::after { content: none; }
+  /* `==highlighted text==` (see the "mark" inline rule below). */
+  mark {
+    background: rgba(255, 224, 0, 0.4);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 0.15em;
+  }
+  @media (prefers-color-scheme: dark) {
+    mark { background: rgba(255, 200, 0, 0.35); }
+  }
   mark.find-result {
     background: rgba(255, 200, 0, 0.45);
     color: inherit;
@@ -264,6 +274,80 @@ const md = window.markdownit({
     return hljs.highlightAuto(code).value;
   }
 });
+
+// ── Highlight (`==text==` → <mark>text</mark>) ───────────────────────────────
+// markdown-it has no built-in `==`/`<mark>` syntax, so this registers the same
+// paired-delimiter scan bold/italic use (via scanDelims), matching the
+// markdown-it-mark plugin's approach rather than a naive regex that would also
+// mangle `==` inside code spans or across escaped characters.
+(function() {
+  const MARKER = 0x3D; // '='
+
+  function tokenizeMark(state, silent) {
+    if (state.src.charCodeAt(state.pos) !== MARKER) return false;
+    const scanned = state.scanDelims(state.pos, true);
+    let len = scanned.length;
+    if (len < 2) return false;
+    if (silent) { state.pos += scanned.length; return true; }
+
+    if (len % 2) {
+      const token = state.push('text', '', 0);
+      token.content = '=';
+      len--;
+    }
+
+    for (let i = 0; i < len; i += 2) {
+      const token = state.push('text', '', 0);
+      token.content = '==';
+      state.delimiters.push({
+        marker: MARKER,
+        length: 0,
+        jump: i / 2,
+        token: state.tokens.length - 1,
+        end: -1,
+        open: scanned.can_open,
+        close: scanned.can_close
+      });
+    }
+
+    state.pos += scanned.length;
+    return true;
+  }
+
+  function postProcessMark(state, delimiters) {
+    for (let i = 0; i < delimiters.length; i++) {
+      const startDelim = delimiters[i];
+      if (startDelim.marker !== MARKER || startDelim.end === -1) continue;
+      const endDelim = delimiters[startDelim.end];
+
+      let token = state.tokens[startDelim.token];
+      token.type = 'mark_open';
+      token.tag = 'mark';
+      token.nesting = 1;
+      token.markup = '==';
+      token.content = '';
+
+      token = state.tokens[endDelim.token];
+      token.type = 'mark_close';
+      token.tag = 'mark';
+      token.nesting = -1;
+      token.markup = '==';
+      token.content = '';
+    }
+  }
+
+  md.inline.ruler.before('emphasis', 'mark', tokenizeMark);
+  md.inline.ruler2.before('emphasis', 'mark', function(state) {
+    postProcessMark(state, state.delimiters);
+    const tokensMeta = state.tokens_meta || [];
+    for (let curr = 0; curr < tokensMeta.length; curr++) {
+      if (tokensMeta[curr] && tokensMeta[curr].delimiters) {
+        postProcessMark(state, tokensMeta[curr].delimiters);
+      }
+    }
+    return true;
+  });
+})();
 
 // Task list support. markdown-it puts a hidden `paragraph_open` between
 // `list_item_open` and the `inline` token, so we look back past it. We strip only
