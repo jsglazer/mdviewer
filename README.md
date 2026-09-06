@@ -14,6 +14,7 @@ A lightweight macOS app for viewing Markdown files. Open a file and it renders i
 - Light and dark mode, following the system appearance
 - YAML frontmatter (a `---`/`key: value`/`---` block at the top of a file) is rendered as a distinct metadata block rather than as Markdown prose
 - Obsidian-style callouts (`> [!note] Title`, `[!tip]`, `[!warning]`, etc.) render as colored, iconed boxes matching Obsidian's callout types; `+`/`-` suffixes make a callout foldable, click its title bar to collapse/expand
+- Obsidian-style highlights (`==text==`) render as highlighted text
 
 ### Live Reload
 - Watches the open file for changes and re-renders in place — no manual refresh needed
