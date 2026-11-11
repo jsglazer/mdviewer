@@ -37,9 +37,12 @@ public func LLVMFuzzerTestOneInput(_ start: UnsafePointer<UInt8>, _ count: Int) 
 }
 SWIFT
 
+    # -static-stdlib: the ClusterFuzzLite runner image has no Swift runtime, so a dynamically
+    # linked target dies at startup ("libswiftCore.so: cannot open shared object file").
     swiftc \
         -parse-as-library \
         -sanitize=fuzzer,address \
+        -static-stdlib \
         -O \
         "$src" \
         "$shim" \
