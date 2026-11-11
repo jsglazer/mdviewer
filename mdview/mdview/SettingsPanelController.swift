@@ -8,13 +8,13 @@ final class SettingsPanelController {
 
     func show() {
         if panel == nil {
-            let p = UtilityPanel.make(
+            let newPanel = UtilityPanel.make(
                 title: "Settings",
                 size: NSSize(width: 480, height: 500),
                 minSize: NSSize(width: 380, height: 300)
             )
-            p.contentView = NSHostingView(rootView: SettingsView())
-            panel = p
+            newPanel.contentView = NSHostingView(rootView: SettingsView())
+            panel = newPanel
         }
         if let panel { UtilityPanel.present(panel) }
     }

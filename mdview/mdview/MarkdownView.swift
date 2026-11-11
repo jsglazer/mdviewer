@@ -171,27 +171,27 @@ struct MarkdownView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        let c = context.coordinator
-        c.autoScrollMode = autoScrollMode
-        c.onHeadingsUpdated = onHeadingsUpdated
-        c.onActiveHeadingsChanged = onActiveHeadingsChanged
-        c.pendingMarkdown = markdown
-        c.customCSS = customCSS
+        let coordinator = context.coordinator
+        coordinator.autoScrollMode = autoScrollMode
+        coordinator.onHeadingsUpdated = onHeadingsUpdated
+        coordinator.onActiveHeadingsChanged = onActiveHeadingsChanged
+        coordinator.pendingMarkdown = markdown
+        coordinator.customCSS = customCSS
 
-        guard c.isLoaded else { return }
+        guard coordinator.isLoaded else { return }
 
-        if markdown != c.lastRenderedMarkdown {
-            c.render(markdown)
+        if markdown != coordinator.lastRenderedMarkdown {
+            coordinator.render(markdown)
         } else if autoScrollMode == .tail {
-            c.doScrollToBottom()
+            coordinator.doScrollToBottom()
         }
 
-        if customCSS != c.lastAppliedCSS {
-            c.doApplyCSS(customCSS)
+        if customCSS != coordinator.lastAppliedCSS {
+            coordinator.doApplyCSS(customCSS)
         }
 
-        if showLineNumbers != c.lastLineNumbers {
-            c.doSetLineNumbers(showLineNumbers)
+        if showLineNumbers != coordinator.lastLineNumbers {
+            coordinator.doSetLineNumbers(showLineNumbers)
         }
     }
 
@@ -212,6 +212,7 @@ struct MarkdownView: NSViewRepresentable {
             controller.coordinator = self  // weak back-reference for imperative scroll commands
         }
 
+        // swiftlint:disable:next implicitly_unwrapped_optional - WKNavigationDelegate's exact @objc signature; `WKNavigation?` would silently stop the callback
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoaded = true
             render(pendingMarkdown)
@@ -284,10 +285,10 @@ struct MarkdownView: NSViewRepresentable {
                     let data = jsonStr.data(using: .utf8),
                     let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
                 else { return }
-                let items = arr.compactMap { d -> TOCItem? in
-                    guard let id = d["id"] as? String,
-                        let level = d["level"] as? Int,
-                        let text = d["text"] as? String
+                let items = arr.compactMap { dict -> TOCItem? in
+                    guard let id = dict["id"] as? String,
+                        let level = dict["level"] as? Int,
+                        let text = dict["text"] as? String
                     else { return nil }
                     return TOCItem(id: id, level: level, text: text)
                 }
@@ -326,8 +327,8 @@ struct MarkdownView: NSViewRepresentable {
             else { completion([]); return }
             webView.evaluateJavaScript("window.findText(\(json))") { result, _ in
                 guard let jsonStr = result as? String,
-                    let d = jsonStr.data(using: .utf8),
-                    let arr = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]]
+                    let data = jsonStr.data(using: .utf8),
+                    let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
                 else {
                     DispatchQueue.main.async { completion([]) }
                     return
@@ -381,8 +382,8 @@ struct MarkdownView: NSViewRepresentable {
         private static func firstDivergingLine(old: String, new: String) -> Int {
             let oldLines = old.components(separatedBy: "\n")
             let newLines = new.components(separatedBy: "\n")
-            for i in 0..<min(oldLines.count, newLines.count) {
-                if oldLines[i] != newLines[i] { return i }
+            for i in 0..<min(oldLines.count, newLines.count) where oldLines[i] != newLines[i] {
+                return i
             }
             return min(oldLines.count, newLines.count)
         }

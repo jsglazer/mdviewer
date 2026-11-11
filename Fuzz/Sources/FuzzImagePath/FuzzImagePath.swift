@@ -25,7 +25,7 @@ public func fuzzImagePath(_ start: UnsafePointer<UInt8>, _ count: Int) -> CInt {
     // The invariant is that resolution + detection never crash regardless of input.
     let basePath = baseDir.path
     let resolvedPath = resolved.path
-    let _ = resolvedPath == basePath || resolvedPath.hasPrefix(basePath + "/")
+    _ = resolvedPath == basePath || resolvedPath.hasPrefix(basePath + "/")
 
     return 0
 }

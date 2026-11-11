@@ -61,7 +61,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
             guard window.isVisible,
                 window.tabbingMode != .disallowed,
-                window.tabbedWindows == nil || window.tabbedWindows!.count <= 1
+                (window.tabbedWindows?.count ?? 0) <= 1
             else { return }
 
             let others = NSApp.windows.filter {

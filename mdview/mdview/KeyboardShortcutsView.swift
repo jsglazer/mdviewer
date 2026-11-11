@@ -111,17 +111,17 @@ enum UtilityPanel {
     ) -> NSPanel {
         var style: NSWindow.StyleMask = [.titled, .closable, .resizable]
         if miniaturizable { style.insert(.miniaturizable) }
-        let p = NSPanel(
+        let newPanel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: style,
             backing: .buffered,
             defer: false
         )
-        p.title = title
-        p.isReleasedWhenClosed = false
-        p.tabbingMode = .disallowed
-        p.minSize = minSize
-        return p
+        newPanel.title = title
+        newPanel.isReleasedWhenClosed = false
+        newPanel.tabbingMode = .disallowed
+        newPanel.minSize = minSize
+        return newPanel
     }
 
     // Center only when the panel is not already on screen, then bring it forward.
@@ -138,13 +138,13 @@ final class ShortcutsPanelController {
 
     func show() {
         if panel == nil {
-            let p = UtilityPanel.make(
+            let newPanel = UtilityPanel.make(
                 title: "Keyboard Shortcuts",
                 size: NSSize(width: 360, height: 540),
                 minSize: NSSize(width: 300, height: 300)
             )
-            p.contentView = NSHostingView(rootView: KeyboardShortcutsView())
-            panel = p
+            newPanel.contentView = NSHostingView(rootView: KeyboardShortcutsView())
+            panel = newPanel
         }
         if let panel { UtilityPanel.present(panel) }
     }

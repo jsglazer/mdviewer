@@ -122,6 +122,7 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
 
     // MARK: - Navigation
 
+    // swiftlint:disable:next implicitly_unwrapped_optional - WKNavigationDelegate's exact @objc signature; `WKNavigation?` would silently stop the callback
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard let job else { return }
         var script = ""
@@ -154,6 +155,7 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
     }
 
     func webView(
+        // swiftlint:disable:next implicitly_unwrapped_optional - WKNavigationDelegate's exact @objc signature; `WKNavigation?` would silently stop the callback
         _ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error
     ) {
         finish(.failure(error))

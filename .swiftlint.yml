@@ -31,6 +31,8 @@ disabled_rules:
   - todo                 # TODO/FIXME comments are fine during development
   - trailing_whitespace  # handled by swift-format instead
   - trailing_comma       # conflicts with swift-format (authoritative formatter)
+  - opening_brace        # conflicts with swift-format: it puts `{` on its own line after a wrapped condition
+  - closure_parameter_position  # conflicts with swift-format: it wraps long capture lists onto the next line
 
 line_length:
   warning: 120

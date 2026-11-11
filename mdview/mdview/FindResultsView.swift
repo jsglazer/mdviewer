@@ -87,14 +87,12 @@ private struct FindRow: View {
     }
 
     private var snippet: Text {
-        var t = Text("")
-        if !result.before.isEmpty {
-            t = t + Text("…\(result.before) ").foregroundStyle(.secondary)
-        }
-        t = t + Text(result.match).bold()
-        if !result.after.isEmpty {
-            t = t + Text(" \(result.after)…").foregroundStyle(.secondary)
-        }
-        return t.font(.caption)
+        let before =
+            result.before.isEmpty
+            ? Text("") : Text("…\(result.before) ").foregroundStyle(.secondary)
+        let after =
+            result.after.isEmpty
+            ? Text("") : Text(" \(result.after)…").foregroundStyle(.secondary)
+        return (before + Text(result.match).bold() + after).font(.caption)
     }
 }

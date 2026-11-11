@@ -47,10 +47,22 @@ struct TOCView: View {
                     }
                     .focusable()
                     .focused($focused)
-                    .onKeyPress(.upArrow) { moveSelection(-1, proxy: proxy); return .handled }
-                    .onKeyPress(.downArrow) { moveSelection(1, proxy: proxy); return .handled }
-                    .onKeyPress(.leftArrow) { collapseSelected(proxy: proxy); return .handled }
-                    .onKeyPress(.rightArrow) { expandSelected(proxy: proxy); return .handled }
+                    .onKeyPress(.upArrow) {
+                        moveSelection(-1, proxy: proxy)
+                        return .handled
+                    }
+                    .onKeyPress(.downArrow) {
+                        moveSelection(1, proxy: proxy)
+                        return .handled
+                    }
+                    .onKeyPress(.leftArrow) {
+                        collapseSelected(proxy: proxy)
+                        return .handled
+                    }
+                    .onKeyPress(.rightArrow) {
+                        expandSelected(proxy: proxy)
+                        return .handled
+                    }
                     .onChange(of: activeChain) { _, chain in
                         if let id = chain.first {
                             withAnimation(.easeInOut(duration: 0.2)) {

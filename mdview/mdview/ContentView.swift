@@ -21,6 +21,10 @@ struct ContentView: View {
     @FocusState private var findFocused: Bool
 
     var body: some View {
+        receivingViewCommands(receivingFindCommands(mainContent))
+    }
+
+    private var mainContent: some View {
         VStack(spacing: 0) {
             ribbonBar
             HStack(spacing: 0) {
@@ -67,47 +71,60 @@ struct ContentView: View {
             // Marks are cleared when innerHTML is replaced; clear results to match
             if showFind { findResults = []; currentFindIndex = nil }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewOpenFind)) { _ in
-            showFind = true
-            findFocused = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("mdviewCloseFind")))
-        { _ in
-            closeFind()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleLineNumbers)) { _ in
-            showLineNumbers.toggle()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewShowCSS)) { _ in
-            showDocumentCSS()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleJumpToNew)) { _ in
-            autoScrollMode = autoScrollMode == .firstNew ? .none : .firstNew
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleTail)) { _ in
-            autoScrollMode = autoScrollMode == .tail ? .none : .tail
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleOutline)) { _ in
-            showTOC.toggle()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewShowKeyboardShortcuts)) { _ in
-            ShortcutsPanelController.shared.show()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomIn)) { _ in
-            markdownController.zoomIn()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomOut)) { _ in
-            markdownController.zoomOut()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewResetZoom)) { _ in
-            markdownController.resetZoom()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewPrint)) { _ in
-            if isFrontDocument { openPrintPreview(intent: .printing) }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .mdviewExportPDF)) { _ in
-            if isFrontDocument { openPrintPreview(intent: .exportPDF) }
-        }
+    }
+
+    /// Find, outline and auto-scroll menu commands. Split out of `body`: as one modifier chain
+    /// it exceeded the Swift type checker's time limit ("unable to type-check this expression").
+    private func receivingFindCommands(_ content: some View) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewOpenFind)) { _ in
+                showFind = true
+                findFocused = true
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: Notification.Name("mdviewCloseFind"))
+            ) { _ in
+                closeFind()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleLineNumbers)) { _ in
+                showLineNumbers.toggle()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewShowCSS)) { _ in
+                showDocumentCSS()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleJumpToNew)) { _ in
+                autoScrollMode = autoScrollMode == .firstNew ? .none : .firstNew
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleTail)) { _ in
+                autoScrollMode = autoScrollMode == .tail ? .none : .tail
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleOutline)) { _ in
+                showTOC.toggle()
+            }
+    }
+
+    /// Zoom, print, export and panel menu commands (see `receivingFindCommands`).
+    private func receivingViewCommands(_ content: some View) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewShowKeyboardShortcuts)) {
+                _ in
+                ShortcutsPanelController.shared.show()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomIn)) { _ in
+                markdownController.zoomIn()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewZoomOut)) { _ in
+                markdownController.zoomOut()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewResetZoom)) { _ in
+                markdownController.resetZoom()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewPrint)) { _ in
+                if isFrontDocument { openPrintPreview(intent: .printing) }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewExportPDF)) { _ in
+                if isFrontDocument { openPrintPreview(intent: .exportPDF) }
+            }
     }
 
     // MARK: - Ribbon
@@ -190,7 +207,7 @@ struct ContentView: View {
                 .textFieldStyle(.plain)
                 .font(.caption)
                 .focused($findFocused)
-                .onChange(of: findQuery) { _, q in performFind(q) }
+                .onChange(of: findQuery) { _, query in performFind(query) }
                 .onKeyPress(.escape) {
                     closeFind(); return .handled
                 }
@@ -296,6 +313,7 @@ struct ContentView: View {
     }
 
     // Matches the URL part of ![alt](url ...) including the <angle-bracket> form.
+    // swiftlint:disable:next force_try - constant pattern, verified by the image-path tests
     private static let imagePattern = try! NSRegularExpression(
         pattern: #"(!\[[^\]]*\]\()\s*(<[^>]*>|[^)\s]+)"#
     )

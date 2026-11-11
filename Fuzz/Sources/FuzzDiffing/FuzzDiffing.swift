@@ -45,8 +45,8 @@ public func fuzzDiffing(_ start: UnsafePointer<UInt8>, _ count: Int) -> CInt {
 private func firstDivergingLine(old: String, new: String) -> Int {
     let oldLines = old.components(separatedBy: "\n")
     let newLines = new.components(separatedBy: "\n")
-    for i in 0..<min(oldLines.count, newLines.count) {
-        if oldLines[i] != newLines[i] { return i }
+    for i in 0..<min(oldLines.count, newLines.count) where oldLines[i] != newLines[i] {
+        return i
     }
     return min(oldLines.count, newLines.count)
 }

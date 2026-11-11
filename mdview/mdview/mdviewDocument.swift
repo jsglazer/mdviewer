@@ -31,7 +31,7 @@ struct mdviewDocument: FileDocument {
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = text.data(using: .utf8)!
+        let data = Data(text.utf8)
         return .init(regularFileWithContents: data)
     }
 }
