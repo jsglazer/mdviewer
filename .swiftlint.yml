@@ -9,6 +9,7 @@ excluded:
   - build
   - Pods
   - .git
+  - Packages/MarkdownRenderKit/editor-src/node_modules
 
 # Opt-in rules worth having (off by default in SwiftLint).
 opt_in_rules:

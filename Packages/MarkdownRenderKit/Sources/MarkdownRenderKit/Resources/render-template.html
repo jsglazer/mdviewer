@@ -920,6 +920,91 @@ window.contentHeight = function() {
   return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
 };
 
+// ── Source-line scroll sync (mdedit) ────────────────────────────────────────
+// Maps between the viewport top and a fractional 0-based source line using the
+// data-md-line stamps on top-level blocks, interpolating between neighbouring
+// blocks. Scroll positions are only posted when the host registered a
+// `previewScroll` handler, so the viewer is unaffected.
+const _SCROLL_QUIET_MS = 200;
+let _ignoreScrollUntil = 0;
+let _scrollFrame = 0;
+
+function _lineBlocks() {
+  const out = [];
+  document.querySelectorAll('#content > [data-md-line]').forEach(function(el) {
+    out.push({ line: parseInt(el.getAttribute('data-md-line'), 10), top: el.getBoundingClientRect().top + window.scrollY });
+  });
+  return out;
+}
+
+window.getTopLine = function() {
+  const blocks = _lineBlocks();
+  if (!blocks.length) return 0;
+  const y = window.scrollY;
+  if (y <= blocks[0].top) return blocks[0].line * (blocks[0].top > 0 ? y / blocks[0].top : 0);
+  for (let i = 0; i < blocks.length; i++) {
+    const a = blocks[i];
+    const b = blocks[i + 1];
+    if (!b) {
+      const end = document.documentElement.scrollHeight;
+      return a.line + (end > a.top ? Math.min((y - a.top) / (end - a.top), 1) : 0);
+    }
+    if (y < b.top) {
+      const span = b.top - a.top;
+      return a.line + (span > 0 ? (y - a.top) / span * (b.line - a.line) : 0);
+    }
+  }
+  return blocks[blocks.length - 1].line;
+};
+
+window.scrollToLine = function(line) {
+  const blocks = _lineBlocks();
+  let y = 0;
+  if (blocks.length) {
+    if (line <= blocks[0].line) {
+      y = blocks[0].line > 0 ? blocks[0].top * (line / blocks[0].line) : 0;
+    } else {
+      y = blocks[blocks.length - 1].top;
+      for (let i = 0; i < blocks.length - 1; i++) {
+        const a = blocks[i];
+        const b = blocks[i + 1];
+        if (line < b.line) {
+          y = a.top + (b.top - a.top) * ((line - a.line) / Math.max(b.line - a.line, 1));
+          break;
+        }
+      }
+    }
+  }
+  _ignoreScrollUntil = Date.now() + _SCROLL_QUIET_MS;
+  window.scrollTo(0, Math.max(0, y));
+};
+
+// Source line of a heading, for moving the editor when an Outline entry is clicked.
+window.headingLine = function(id) {
+  let el = document.getElementById(id);
+  while (el && el.parentElement && el.parentElement.id !== 'content') el = el.parentElement;
+  return el && el.hasAttribute('data-md-line') ? parseInt(el.getAttribute('data-md-line'), 10) : -1;
+};
+
+// Re-render without the view jumping: render() replaces #content.innerHTML, so pin
+// the same source line to the top of the viewport afterwards.
+window.setMarkdownKeepingLine = function(markdown) {
+  const line = window.getTopLine();
+  window.setMarkdown(markdown);
+  window.scrollToLine(line);
+};
+
+window.addEventListener('scroll', function() {
+  if (_scrollFrame) return;
+  _scrollFrame = requestAnimationFrame(function() {
+    _scrollFrame = 0;
+    if (Date.now() < _ignoreScrollUntil) return;
+    try {
+      window.webkit.messageHandlers.previewScroll.postMessage(window.getTopLine());
+    } catch (e) {}
+  });
+}, { passive: true });
+
 // Inject or update custom user CSS in <head>
 window.setCustomCSS = function(css) {
   let el = document.getElementById('user-css');

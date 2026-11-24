@@ -137,6 +137,13 @@ public final class MarkdownController {
     public func getDocumentCSS(completion: @escaping (String) -> Void) {
         coordinator?.doGetDocumentCSS(completion: completion)
     }
+    /// Scrolls the preview so the (fractional, 0-based) source line is at the top.
+    public func scrollToLine(_ line: Double) { coordinator?.doScrollToLine(line) }
+    /// Looks up the 0-based source line of a heading (nil if unknown).
+    public func sourceLine(forHeading id: String, completion: @escaping (Int?) -> Void) {
+        guard let coordinator else { completion(nil); return }
+        coordinator.doSourceLine(forHeading: id, completion: completion)
+    }
     public func zoomIn() { coordinator?.doZoomIn() }
     public func zoomOut() { coordinator?.doZoomOut() }
     public func resetZoom() { coordinator?.doResetZoom() }
@@ -161,6 +168,13 @@ public struct MarkdownView: NSViewRepresentable {
     var baseDir: URL?
     var onHeadingsUpdated: ([TOCItem]) -> Void = { _ in }
     var onActiveHeadingsChanged: ([String]) -> Void = { _ in }
+    /// When set, the preview reports the fractional source line at the top of the
+    /// viewport whenever the user scrolls it (scroll sync). Programmatic scrolls
+    /// (`scrollToLine`) are not echoed back.
+    var onTopLineChanged: ((Double) -> Void)?
+    /// Re-render with the same source line pinned to the top, instead of leaving the
+    /// raw scroll offset (an editor re-renders on every keystroke pause).
+    var keepsSourceLineOnRender = false
 
     public init(
         markdown: String,
@@ -170,7 +184,9 @@ public struct MarkdownView: NSViewRepresentable {
         showLineNumbers: Bool,
         baseDir: URL? = nil,
         onHeadingsUpdated: @escaping ([TOCItem]) -> Void = { _ in },
-        onActiveHeadingsChanged: @escaping ([String]) -> Void = { _ in }
+        onActiveHeadingsChanged: @escaping ([String]) -> Void = { _ in },
+        onTopLineChanged: ((Double) -> Void)? = nil,
+        keepsSourceLineOnRender: Bool = false
     ) {
         self.markdown = markdown
         self.controller = controller
@@ -180,6 +196,8 @@ public struct MarkdownView: NSViewRepresentable {
         self.baseDir = baseDir
         self.onHeadingsUpdated = onHeadingsUpdated
         self.onActiveHeadingsChanged = onActiveHeadingsChanged
+        self.onTopLineChanged = onTopLineChanged
+        self.keepsSourceLineOnRender = keepsSourceLineOnRender
     }
 
     public func makeCoordinator() -> Coordinator { Coordinator(controller: controller) }
@@ -188,6 +206,10 @@ public struct MarkdownView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.userContentController.add(
             WeakScriptHandler(context.coordinator), name: "activeHeadings")
+        if onTopLineChanged != nil {
+            config.userContentController.add(
+                WeakScriptHandler(context.coordinator), name: "previewScroll")
+        }
         // Serve referenced images on demand instead of base64-inlining them into
         // the markdown (which re-encoded every file on each reload).
         if let baseDir {
@@ -210,6 +232,8 @@ public struct MarkdownView: NSViewRepresentable {
         coordinator.autoScrollMode = autoScrollMode
         coordinator.onHeadingsUpdated = onHeadingsUpdated
         coordinator.onActiveHeadingsChanged = onActiveHeadingsChanged
+        coordinator.onTopLineChanged = onTopLineChanged
+        coordinator.keepsSourceLineOnRender = keepsSourceLineOnRender
         coordinator.pendingMarkdown = markdown
         coordinator.customCSS = customCSS
 
@@ -241,6 +265,8 @@ public struct MarkdownView: NSViewRepresentable {
         var autoScrollMode: AutoScrollMode = .none
         var onHeadingsUpdated: ([TOCItem]) -> Void = { _ in }
         var onActiveHeadingsChanged: ([String]) -> Void = { _ in }
+        var onTopLineChanged: ((Double) -> Void)?
+        var keepsSourceLineOnRender = false
 
         init(controller: MarkdownController) {
             super.init()
@@ -298,7 +324,8 @@ public struct MarkdownView: NSViewRepresentable {
                 let json = String(data: data, encoding: .utf8)
             else { return }
 
-            webView.evaluateJavaScript("window.setMarkdown(\(json))") {
+            let setter = keepsSourceLineOnRender ? "setMarkdownKeepingLine" : "setMarkdown"
+            webView.evaluateJavaScript("window.\(setter)(\(json))") {
                 [weak self, capturedMode, firstNewLine] _, _ in
                 guard let self else { return }
                 self.fetchHeadings()
@@ -394,7 +421,29 @@ public struct MarkdownView: NSViewRepresentable {
                 "window.setLineNumbers(\(enabled ? "true" : "false"))", completionHandler: nil)
         }
 
+        func doScrollToLine(_ line: Double) {
+            guard line.isFinite else { return }
+            webView?.evaluateJavaScript("window.scrollToLine(\(line))", completionHandler: nil)
+        }
+
+        func doSourceLine(forHeading id: String, completion: @escaping (Int?) -> Void) {
+            guard let webView,
+                let data = try? JSONEncoder().encode(id),
+                let json = String(data: data, encoding: .utf8)
+            else { completion(nil); return }
+            webView.evaluateJavaScript("window.headingLine(\(json))") { result, _ in
+                let line = (result as? NSNumber)?.intValue ?? -1
+                DispatchQueue.main.async { completion(line >= 0 ? line : nil) }
+            }
+        }
+
         func handleScriptMessage(_ message: WKScriptMessage) {
+            if message.name == "previewScroll" {
+                if let line = (message.body as? NSNumber)?.doubleValue {
+                    onTopLineChanged?(line)
+                }
+                return
+            }
             guard message.name == "activeHeadings",
                 let jsonStr = message.body as? String,
                 let data = jsonStr.data(using: .utf8),

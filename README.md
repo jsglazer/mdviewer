@@ -68,6 +68,30 @@ A lightweight macOS app for viewing Markdown files. Open a file and it renders i
 
 A full shortcut reference is available from the Settings panel.
 
+## mdedit (editor)
+
+**mdedit** is a companion Markdown *editor* built from the same repository and the same rendering engine as mdview, so its live preview looks exactly like mdview. It is in early development (0.1.x) and not yet released; mdview remains the lightweight read-only viewer.
+
+- **Editor:** [CodeMirror 6](https://codemirror.net) with Markdown (GFM) syntax highlighting, multiple cursors, search & replace (`⌘F`), undo history, bracket matching, optional line numbers and soft wrap (on by default), and light/dark themes that follow the system appearance. Font and size are set in Settings.
+- **Layouts:** a toolbar switch for **Edit | Split | Preview** (`⌘1` / `⌘2` / `⌘3`, Split by default). The preview re-renders as you type and keeps its place.
+- **Scroll sync:** in Split layout, scrolling either pane moves the other to the matching source line, and clicking an Outline heading moves both panes.
+- **Formatting:** `⌘B` bold, `⌘I` italic, `⌘K` link, `⇧⌘H` `==highlight==`, `⌘/` toggle HTML comment (also in the Format menu).
+- **Documents:** the standard macOS document system, with New / Open / Save / Save As / Duplicate / Rename / Revert, autosave and Versions (File ▸ Revert To ▸ Browse All Versions). Files keep their original line endings (LF / CRLF), byte-order mark and trailing newline.
+- **Files changed on disk:** an unedited document reloads automatically when another app changes the file, including editors like vim that save by rename-and-replace. If you have unsaved edits, macOS's standard "changed by another application" choice appears when you save, so neither side is overwritten silently.
+- **Preview extras** from mdview: Outline, Find in Preview (`⌥⌘F`), preview line numbers, Print Preview and PDF export of the current text. Custom preview CSS is shared with mdview.
+- mdedit registers for Markdown files as an *alternate* handler, so it never takes over as the default app for `.md` from mdview or Obsidian.
+
+## Repository layout
+
+| Path | What it is |
+|------|------------|
+| `mdview/mdview/` | The **mdview** app target (viewer): window, ribbon, live reload, settings panels |
+| `mdview/mdedit/` | The **mdedit** app target (editor): document type, editor window, menus, settings |
+| `mdview/mdview.xcodeproj` | One Xcode project with both app targets and a shared scheme for each |
+| `Packages/MarkdownRenderKit/` | Local Swift package both apps link: the WKWebView preview (markdown-it, KaTeX, highlight.js, callouts, highlights, frontmatter, relative images), Outline and Find views, the Print Preview/PDF pipeline, and the CodeMirror editor view |
+| `Packages/MarkdownRenderKit/editor-src/` | Source for the vendored CodeMirror bundle (`npm run build`, output committed, so building the apps never needs Node) |
+| `Fuzz/` | libFuzzer targets and a local smoke test (`make fuzz-smoke`) |
+
 ## Requirements
 
 - macOS 14 (Sonoma) or later
@@ -75,7 +99,7 @@ A full shortcut reference is available from the Settings panel.
 
 ## Building
 
-Open `mdview/mdview.xcodeproj` in Xcode and press `⌘R`.
+Open `mdview/mdview.xcodeproj` in Xcode, choose the **mdview** or **mdedit** scheme and press `⌘R`. From the command line, `make check` runs format-check, lint and a Release build of both apps.
 
 ## License
 

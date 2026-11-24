@@ -1,0 +1,20 @@
+{
+  "name": "mdedit-editor",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CodeMirror 6 bundle for mdedit. Build output is committed to Sources/MarkdownRenderKit/Resources/codemirror-editor.min.js; Xcode never runs npm.",
+  "scripts": {
+    "build": "esbuild editor.js --bundle --minify --format=iife --target=safari17 --legal-comments=none --outfile=../Sources/MarkdownRenderKit/Resources/codemirror-editor.min.js"
+  },
+  "devDependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/search": "6.7.2",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
+    "@lezer/highlight": "1.2.5",
+    "@lezer/markdown": "1.8.1",
+    "esbuild": "0.28.2"
+  }
+}

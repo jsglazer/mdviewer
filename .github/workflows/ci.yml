@@ -25,7 +25,9 @@ jobs:
         run: make lint
         continue-on-error: true
 
-      - name: Build
+      # Builds every app scheme (mdview, mdedit) via the Makefile's SCHEMES list;
+      # both link the local MarkdownRenderKit package.
+      - name: Build (mdview + mdedit)
         run: make build
 
       # Enable once a test target exists:

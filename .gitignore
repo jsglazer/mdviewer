@@ -22,3 +22,4 @@ Fuzz/.build/
 Packages/*/.build/
 Packages/*/.swiftpm/
 Packages/MarkdownRenderKit/editor-src/node_modules/
+build/
