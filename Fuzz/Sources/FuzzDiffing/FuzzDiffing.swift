@@ -41,7 +41,7 @@ public func fuzzDiffing(_ start: UnsafePointer<UInt8>, _ count: Int) -> CInt {
     return 0
 }
 
-// Inlined from MarkdownView.swift — cannot import SwiftUI in a headless fuzz target.
+// Inlined from MarkdownRenderKit's MarkdownView.swift — cannot import SwiftUI in a headless fuzz target.
 private func firstDivergingLine(old: String, new: String) -> Int {
     let oldLines = old.components(separatedBy: "\n")
     let newLines = new.components(separatedBy: "\n")

@@ -1,3 +1,5 @@
+import AppKit
+import MarkdownRenderKit
 import SwiftUI
 
 struct KeyboardShortcutsView: View {
@@ -95,39 +97,6 @@ struct KeyboardShortcutsView: View {
                 .padding(.bottom, 14)
             }
         }
-    }
-}
-
-import AppKit
-
-// Shared NSPanel construction for the app's utility panels (Settings, Document
-// CSS, Keyboard Shortcuts), which were otherwise three copies of the same setup.
-enum UtilityPanel {
-    static func make(
-        title: String,
-        size: NSSize,
-        minSize: NSSize,
-        miniaturizable: Bool = false
-    ) -> NSPanel {
-        var style: NSWindow.StyleMask = [.titled, .closable, .resizable]
-        if miniaturizable { style.insert(.miniaturizable) }
-        let newPanel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: size),
-            styleMask: style,
-            backing: .buffered,
-            defer: false
-        )
-        newPanel.title = title
-        newPanel.isReleasedWhenClosed = false
-        newPanel.tabbingMode = .disallowed
-        newPanel.minSize = minSize
-        return newPanel
-    }
-
-    // Center only when the panel is not already on screen, then bring it forward.
-    static func present(_ panel: NSPanel) {
-        if !panel.isVisible { panel.center() }
-        panel.makeKeyAndOrderFront(nil)
     }
 }
 

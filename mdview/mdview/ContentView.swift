@@ -1,3 +1,4 @@
+import MarkdownRenderKit
 import SwiftUI
 
 struct ContentView: View {
@@ -81,9 +82,7 @@ struct ContentView: View {
                 showFind = true
                 findFocused = true
             }
-            .onReceive(
-                NotificationCenter.default.publisher(for: Notification.Name("mdviewCloseFind"))
-            ) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .mdviewCloseFind)) { _ in
                 closeFind()
             }
             .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleLineNumbers)) { _ in
@@ -309,50 +308,7 @@ struct ContentView: View {
         // Image bytes are served lazily by ImageSchemeHandler; here we only rewrite
         // relative paths to the custom scheme so the WebView requests them.
         guard fileURL != nil else { return markdown }
-        return rewriteImagePaths(in: markdown)
-    }
-
-    // Matches the URL part of ![alt](url ...) including the <angle-bracket> form.
-    // swiftlint:disable:next force_try - constant pattern, verified by the image-path tests
-    private static let imagePattern = try! NSRegularExpression(
-        pattern: #"(!\[[^\]]*\]\()\s*(<[^>]*>|[^)\s]+)"#
-    )
-
-    private func rewriteImagePaths(in markdown: String) -> String {
-        let mutableString = NSMutableString(string: markdown)
-        var offset = 0
-        let matches = Self.imagePattern.matches(
-            in: markdown, range: NSRange(markdown.startIndex..., in: markdown)
-        )
-        for match in matches {
-            let nsPathRange = match.range(at: 2)
-            guard nsPathRange.location != NSNotFound,
-                let pathRange = Range(nsPathRange, in: markdown)
-            else { continue }
-            var path = String(markdown[pathRange])
-            if path.hasPrefix("<") && path.hasSuffix(">") {
-                path = String(path.dropFirst().dropLast())
-            }
-            // Leave absolute, remote, data: and already-handled URLs untouched.
-            guard !path.isEmpty,
-                !path.hasPrefix("http"), !path.hasPrefix("data:"),
-                !path.hasPrefix("/"), !path.hasPrefix("file:"),
-                !path.hasPrefix("\(ImageSchemeHandler.scheme):")
-            else { continue }
-
-            // Normalise any existing percent-encoding, then re-encode for the URL so
-            // both "my image.png" and "my%20image.png" resolve to the same file.
-            let decoded = path.removingPercentEncoding ?? path
-            let encoded =
-                decoded.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? decoded
-            let replacement = "\(ImageSchemeHandler.scheme)://local/\(encoded)"
-
-            let adjustedRange = NSRange(
-                location: nsPathRange.location + offset, length: nsPathRange.length)
-            mutableString.replaceCharacters(in: adjustedRange, with: replacement)
-            offset += replacement.utf16.count - (nsPathRange.length)
-        }
-        return mutableString as String
+        return MarkdownImagePaths.rewrite(markdown)
     }
 }
 

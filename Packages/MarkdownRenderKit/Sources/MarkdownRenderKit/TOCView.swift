@@ -1,9 +1,17 @@
 import SwiftUI
 
-struct TOCView: View {
+public struct TOCView: View {
     let items: [TOCItem]
     var activeChain: [String] = []  // [0] = current (deepest), last = root ancestor
     let onSelect: (String) -> Void
+
+    public init(
+        items: [TOCItem], activeChain: [String] = [], onSelect: @escaping (String) -> Void
+    ) {
+        self.items = items
+        self.activeChain = activeChain
+        self.onSelect = onSelect
+    }
 
     @State private var collapsed: Set<String> = []
     @State private var selectedID: String?
@@ -14,7 +22,7 @@ struct TOCView: View {
     // Topmost ancestor — highlighted blue (only when the chain has more than one entry)
     private var rootID: String? { activeChain.count > 1 ? activeChain.last : nil }
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             tocHeader
             Divider()

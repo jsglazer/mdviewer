@@ -5,18 +5,28 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// Which action the preview window should offer as its default button.
-enum PrintPreviewIntent {
+public enum PrintPreviewIntent {
     case printing
     case exportPDF
 }
 
 /// Snapshot of the document being previewed, taken when the window is opened.
-struct PrintSource {
+public struct PrintSource {
     let markdown: String
     let baseDir: URL?
     let customCSS: String
     let showLineNumbers: Bool
     let title: String
+
+    public init(
+        markdown: String, baseDir: URL?, customCSS: String, showLineNumbers: Bool, title: String
+    ) {
+        self.markdown = markdown
+        self.baseDir = baseDir
+        self.customCSS = customCSS
+        self.showLineNumbers = showLineNumbers
+        self.title = title
+    }
 }
 
 /// Drives the Print Preview window: regenerates the PDF whenever the page extras or
@@ -252,13 +262,13 @@ final class PrintPreviewModel: NSObject, ObservableObject {
     }
 }
 
-final class PrintPreviewController {
-    static let shared = PrintPreviewController()
+public final class PrintPreviewController {
+    public static let shared = PrintPreviewController()
     private var panel: NSPanel?
     private let model = PrintPreviewModel()
     private init() {}
 
-    func show(source: PrintSource, intent: PrintPreviewIntent) {
+    public func show(source: PrintSource, intent: PrintPreviewIntent) {
         model.configure(source: source, intent: intent)
         if panel == nil {
             let created = UtilityPanel.make(

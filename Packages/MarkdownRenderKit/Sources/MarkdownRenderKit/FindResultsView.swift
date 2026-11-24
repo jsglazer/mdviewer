@@ -1,13 +1,21 @@
 import SwiftUI
 
-struct FindResultsView: View {
+public struct FindResultsView: View {
     let results: [FindResult]
     @Binding var selectedIndex: Int?
     let onSelect: (Int) -> Void
 
+    public init(
+        results: [FindResult], selectedIndex: Binding<Int?>, onSelect: @escaping (Int) -> Void
+    ) {
+        self.results = results
+        self._selectedIndex = selectedIndex
+        self.onSelect = onSelect
+    }
+
     private static let highlightColor = Color.cyan.opacity(0.35)
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             header
             Divider()

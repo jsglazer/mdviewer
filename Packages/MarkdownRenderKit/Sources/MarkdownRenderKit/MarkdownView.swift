@@ -10,7 +10,7 @@ private class MarkdownWebView: WKWebView {
     override func keyDown(with event: NSEvent) {
         // Escape (keyCode 53) — close find bar if open
         if event.keyCode == 53 {
-            NotificationCenter.default.post(name: Notification.Name("mdviewCloseFind"), object: nil)
+            NotificationCenter.default.post(name: .mdviewCloseFind, object: nil)
             return
         }
 
@@ -44,13 +44,13 @@ private class MarkdownWebView: WKWebView {
 
 // Serves images referenced by the document via a custom scheme, streaming the
 // file from the document's directory rather than embedding base64 in the source.
-final class ImageSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "mdview-img"
+public final class ImageSchemeHandler: NSObject, WKURLSchemeHandler {
+    public static let scheme = "mdview-img"
     private let baseDir: URL
 
-    init(baseDir: URL) { self.baseDir = baseDir }
+    public init(baseDir: URL) { self.baseDir = baseDir }
 
-    static func mime(forExtension ext: String) -> String {
+    public static func mime(forExtension ext: String) -> String {
         switch ext.lowercased() {
         case "png": return "image/png"
         case "jpg", "jpeg": return "image/jpeg"
@@ -63,7 +63,7 @@ final class ImageSchemeHandler: NSObject, WKURLSchemeHandler {
         }
     }
 
-    func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
+    public func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         // URL form: mdview-img://local/<percent-encoded relative path>
         guard let url = task.request.url else {
             task.didFailWithError(URLError(.badURL)); return
@@ -89,42 +89,57 @@ final class ImageSchemeHandler: NSObject, WKURLSchemeHandler {
         task.didFinish()
     }
 
-    func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
+    public func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
 }
 
-struct TOCItem: Identifiable, Equatable {
-    let id: String
-    let level: Int
-    let text: String
+public struct TOCItem: Identifiable, Equatable {
+    public let id: String
+    public let level: Int
+    public let text: String
+
+    public init(id: String, level: Int, text: String) {
+        self.id = id
+        self.level = level
+        self.text = text
+    }
 }
 
-struct FindResult: Identifiable, Equatable {
-    let id: Int  // match index; used as scroll target
-    let before: String
-    let match: String
-    let after: String
+public struct FindResult: Identifiable, Equatable {
+    public let id: Int  // match index; used as scroll target
+    public let before: String
+    public let match: String
+    public let after: String
+
+    public init(id: Int, before: String, match: String, after: String) {
+        self.id = id
+        self.before = before
+        self.match = match
+        self.after = after
+    }
 }
 
-enum AutoScrollMode: Equatable {
+public enum AutoScrollMode: Equatable {
     case none, firstNew, tail
 }
 
-final class MarkdownController {
+public final class MarkdownController {
     weak var coordinator: MarkdownView.Coordinator?
 
-    func scrollToHeading(id: String) { coordinator?.doScrollToHeading(id) }
-    func findText(_ query: String, completion: @escaping ([FindResult]) -> Void) {
+    public init() {}
+
+    public func scrollToHeading(id: String) { coordinator?.doScrollToHeading(id) }
+    public func findText(_ query: String, completion: @escaping ([FindResult]) -> Void) {
         coordinator?.doFindText(query, completion: completion)
     }
-    func clearFind() { coordinator?.doClearFind() }
-    func scrollToMatch(_ index: Int) { coordinator?.doScrollToMatch(index) }
-    func setLineNumbers(_ enabled: Bool) { coordinator?.doSetLineNumbers(enabled) }
-    func getDocumentCSS(completion: @escaping (String) -> Void) {
+    public func clearFind() { coordinator?.doClearFind() }
+    public func scrollToMatch(_ index: Int) { coordinator?.doScrollToMatch(index) }
+    public func setLineNumbers(_ enabled: Bool) { coordinator?.doSetLineNumbers(enabled) }
+    public func getDocumentCSS(completion: @escaping (String) -> Void) {
         coordinator?.doGetDocumentCSS(completion: completion)
     }
-    func zoomIn() { coordinator?.doZoomIn() }
-    func zoomOut() { coordinator?.doZoomOut() }
-    func resetZoom() { coordinator?.doResetZoom() }
+    public func zoomIn() { coordinator?.doZoomIn() }
+    public func zoomOut() { coordinator?.doZoomOut() }
+    public func resetZoom() { coordinator?.doResetZoom() }
 }
 
 // Avoids a WKUserContentController → Coordinator retain cycle.
@@ -137,7 +152,7 @@ private class WeakScriptHandler: NSObject, WKScriptMessageHandler {
     }
 }
 
-struct MarkdownView: NSViewRepresentable {
+public struct MarkdownView: NSViewRepresentable {
     let markdown: String
     let controller: MarkdownController
     let autoScrollMode: AutoScrollMode
@@ -147,9 +162,29 @@ struct MarkdownView: NSViewRepresentable {
     var onHeadingsUpdated: ([TOCItem]) -> Void = { _ in }
     var onActiveHeadingsChanged: ([String]) -> Void = { _ in }
 
-    func makeCoordinator() -> Coordinator { Coordinator(controller: controller) }
+    public init(
+        markdown: String,
+        controller: MarkdownController,
+        autoScrollMode: AutoScrollMode,
+        customCSS: String,
+        showLineNumbers: Bool,
+        baseDir: URL? = nil,
+        onHeadingsUpdated: @escaping ([TOCItem]) -> Void = { _ in },
+        onActiveHeadingsChanged: @escaping ([String]) -> Void = { _ in }
+    ) {
+        self.markdown = markdown
+        self.controller = controller
+        self.autoScrollMode = autoScrollMode
+        self.customCSS = customCSS
+        self.showLineNumbers = showLineNumbers
+        self.baseDir = baseDir
+        self.onHeadingsUpdated = onHeadingsUpdated
+        self.onActiveHeadingsChanged = onActiveHeadingsChanged
+    }
 
-    func makeNSView(context: Context) -> WKWebView {
+    public func makeCoordinator() -> Coordinator { Coordinator(controller: controller) }
+
+    public func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.userContentController.add(
             WeakScriptHandler(context.coordinator), name: "activeHeadings")
@@ -162,15 +197,15 @@ struct MarkdownView: NSViewRepresentable {
         let webView = MarkdownWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         context.coordinator.webView = webView
-        if let htmlURL = Bundle.main.url(forResource: "render-template", withExtension: "html"),
-            let resourcesURL = Bundle.main.resourceURL
+        if let htmlURL = RenderResources.templateURL,
+            let resourcesURL = RenderResources.directoryURL
         {
             webView.loadFileURL(htmlURL, allowingReadAccessTo: resourcesURL)
         }
         return webView
     }
 
-    func updateNSView(_ webView: WKWebView, context: Context) {
+    public func updateNSView(_ webView: WKWebView, context: Context) {
         let coordinator = context.coordinator
         coordinator.autoScrollMode = autoScrollMode
         coordinator.onHeadingsUpdated = onHeadingsUpdated
@@ -195,7 +230,7 @@ struct MarkdownView: NSViewRepresentable {
         }
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    public class Coordinator: NSObject, WKNavigationDelegate {
         weak var webView: WKWebView?
         var isLoaded = false
         var pendingMarkdown = ""
@@ -213,7 +248,7 @@ struct MarkdownView: NSViewRepresentable {
         }
 
         // swiftlint:disable:next implicitly_unwrapped_optional - WKNavigationDelegate's exact @objc signature; `WKNavigation?` would silently stop the callback
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoaded = true
             render(pendingMarkdown)
             if !customCSS.isEmpty { doApplyCSS(customCSS) }
@@ -222,7 +257,7 @@ struct MarkdownView: NSViewRepresentable {
         // Pin the WebView to the render template. Without this, clicking any link
         // (or a linkified URL) navigates the view away from the template, wiping
         // out every window.* helper and silently breaking the document.
-        func webView(
+        public func webView(
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void

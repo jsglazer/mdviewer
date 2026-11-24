@@ -1,8 +1,8 @@
-import SwiftUI
 import AppKit
+import MarkdownRenderKit
+import SwiftUI
 
 extension Notification.Name {
-    static let mdviewOpenFind = Notification.Name("mdviewOpenFind")
     static let mdviewToggleLineNumbers = Notification.Name("mdviewToggleLineNumbers")
     static let mdviewShowCSS = Notification.Name("mdviewShowCSS")
     static let mdviewToggleJumpToNew = Notification.Name("mdviewToggleJumpToNew")

@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0384260A2FBFA700001FEA44 /* MarkdownRenderKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0384260B2FBFA700001FEA44 /* MarkdownRenderKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		038425E42FBFA68B001FEA44 /* mdview.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mdview.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0384260A2FBFA700001FEA44 /* MarkdownRenderKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 			);
 			name = mdview;
 			packageProductDependencies = (
+				0384260B2FBFA700001FEA44 /* MarkdownRenderKit */,
 			);
 			productName = mdview;
 			productReference = 038425E42FBFA68B001FEA44 /* mdview.app */;
@@ -107,6 +113,9 @@
 			);
 			mainGroup = 038425DB2FBFA68B001FEA44;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0384260C2FBFA700001FEA44 /* XCLocalSwiftPackageReference "../Packages/MarkdownRenderKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 038425E52FBFA68B001FEA44 /* Products */;
 			projectDirPath = "";
@@ -384,6 +393,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		0384260C2FBFA700001FEA44 /* XCLocalSwiftPackageReference "../Packages/MarkdownRenderKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Packages/MarkdownRenderKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0384260B2FBFA700001FEA44 /* MarkdownRenderKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MarkdownRenderKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 038425DC2FBFA68B001FEA44 /* Project object */;
 }

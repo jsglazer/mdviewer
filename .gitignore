@@ -17,3 +17,8 @@ ClaudeStatus.md
 
 # Swift Package Manager build artifacts
 Fuzz/.build/
+
+# Local package / editor bundle build artifacts
+Packages/*/.build/
+Packages/*/.swiftpm/
+Packages/MarkdownRenderKit/editor-src/node_modules/

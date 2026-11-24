@@ -82,8 +82,8 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
     private func start() {
         tearDown()
         guard let job,
-            let htmlURL = Bundle.main.url(forResource: "render-template", withExtension: "html"),
-            let resourcesURL = Bundle.main.resourceURL
+            let htmlURL = RenderResources.templateURL,
+            let resourcesURL = RenderResources.directoryURL
         else {
             finish(.failure(RenderError.templateMissing))
             return
@@ -123,7 +123,7 @@ final class PrintRenderer: NSObject, WKNavigationDelegate {
     // MARK: - Navigation
 
     // swiftlint:disable:next implicitly_unwrapped_optional - WKNavigationDelegate's exact @objc signature; `WKNavigation?` would silently stop the callback
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard let job else { return }
         var script = ""
         if let markdown = Self.jsString(job.markdown) {

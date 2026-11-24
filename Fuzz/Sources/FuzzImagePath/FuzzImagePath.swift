@@ -2,7 +2,7 @@ import Foundation
 
 /// Exercises ImageSchemeHandler's path-resolution logic.
 ///
-/// Mirrors MarkdownView.swift ImageSchemeHandler.webView(_:start:):
+/// Mirrors Packages/MarkdownRenderKit/Sources/MarkdownRenderKit/MarkdownView.swift ImageSchemeHandler.webView(_:start:):
 ///   let rawPath = url.path.hasPrefix("/") ? String(url.path.dropFirst()) : url.path
 ///   let relPath  = rawPath.removingPercentEncoding ?? rawPath
 ///   let fileURL  = baseDir.appendingPathComponent(relPath).standardized

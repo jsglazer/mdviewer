@@ -1,4 +1,5 @@
 import AppKit
+import MarkdownRenderKit
 import SwiftUI
 
 final class SettingsPanelController {
