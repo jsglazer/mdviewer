@@ -22,11 +22,11 @@ struct mdviewApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        DocumentGroup(viewing: mdviewDocument.self) { config in
-            ContentView(document: config.document, fileURL: config.fileURL)
+        DocumentGroup(newDocument: mdviewDocument()) { config in
+            ContentView(document: config.$document, fileURL: config.fileURL)
         }
         .commands {
-            CommandGroup(replacing: .newItem) {}
+            EditingCommands()
             CommandGroup(replacing: .appInfo) {
                 Button("About mdview") {
                     let info = Bundle.main.infoDictionary
@@ -58,14 +58,11 @@ struct mdviewApp: App {
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
             }
-            CommandGroup(after: .pasteboard) {
-                Divider()
-                Button("Find…") {
-                    NotificationCenter.default.post(name: .mdviewOpenFind, object: nil)
-                }
-                .keyboardShortcut("f", modifiers: .command)
-            }
             CommandMenu("View") {
+                LayoutCommands()
+
+                Divider()
+
                 Button("Jump to New Content") {
                     NotificationCenter.default.post(name: .mdviewToggleJumpToNew, object: nil)
                 }
@@ -78,10 +75,18 @@ struct mdviewApp: App {
 
                 Divider()
 
-                Button("Line Numbers") {
+                Button("Preview Line Numbers") {
                     NotificationCenter.default.post(name: .mdviewToggleLineNumbers, object: nil)
                 }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
+
+                Button("Editor Line Numbers") {
+                    let defaults = UserDefaults.standard
+                    defaults.set(
+                        !defaults.bool(forKey: EditorSettings.Key.lineNumbers),
+                        forKey: EditorSettings.Key.lineNumbers)
+                }
+                .keyboardShortcut("l", modifiers: [.command, .shift, .option])
 
                 Button("Toggle Outline") {
                     NotificationCenter.default.post(name: .mdviewToggleOutline, object: nil)
@@ -92,8 +97,6 @@ struct mdviewApp: App {
                     NotificationCenter.default.post(name: .mdviewShowCSS, object: nil)
                 }
                 .keyboardShortcut("c", modifiers: [.command, .shift])
-
-                Divider()
 
                 Divider()
 
@@ -120,5 +123,83 @@ struct mdviewApp: App {
                 .keyboardShortcut("k", modifiers: [.command, .shift])
             }
         }
+    }
+}
+
+/// The View menu's layout switches. Each acts on the focused document window.
+private struct LayoutCommands: View {
+    @FocusedValue(\.documentWindow) private var window
+
+    var body: some View {
+        ForEach(EditorLayout.allCases) { layout in
+            Button(layout.title) { window?.layout = layout }
+                .keyboardShortcut(
+                    KeyEquivalent(Character("\(layout.rawValue + 1)")), modifiers: .command
+                )
+                .disabled(window == nil)
+        }
+    }
+}
+
+/// Undo/Redo, Find and the Format menu. Editing commands act only on a visible editor
+/// in the focused window, so in the Preview layout no command can change the file.
+struct EditingCommands: Commands {
+    @FocusedValue(\.documentWindow) private var window
+
+    private var canEdit: Bool { window?.layout.showsEditor == true && window?.editor != nil }
+
+    var body: some Commands {
+        // Undo/Redo belong to CodeMirror's history, not the document's whole-text
+        // snapshots. Anywhere else (a text field, the Settings CSS editor) they go to
+        // the responder chain as usual.
+        CommandGroup(replacing: .undoRedo) {
+            Button("Undo") {
+                if canEdit, let editor = window?.editor {
+                    editor.undo()
+                } else {
+                    NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
+                }
+            }
+            .keyboardShortcut("z", modifiers: .command)
+            Button("Redo") {
+                if canEdit, let editor = window?.editor {
+                    editor.redo()
+                } else {
+                    NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
+                }
+            }
+            .keyboardShortcut("z", modifiers: [.command, .shift])
+        }
+        CommandGroup(after: .pasteboard) {
+            Divider()
+            Button("Find…") {
+                if let window {
+                    window.find()
+                } else {
+                    NotificationCenter.default.post(name: .mdviewOpenFind, object: nil)
+                }
+            }
+            .keyboardShortcut("f", modifiers: .command)
+            Button("Find in Preview…") { window?.openPreviewFind() }
+                .keyboardShortcut("f", modifiers: [.command, .option])
+                .disabled(window == nil)
+        }
+        CommandMenu("Format") {
+            formatButton("Bold", .bold, key: "b")
+            formatButton("Italic", .italic, key: "i")
+            formatButton("Link", .link, key: "k")
+            formatButton("Highlight", .highlight, key: "h", modifiers: [.command, .shift])
+            Divider()
+            formatButton("Toggle Comment", .comment, key: "/")
+        }
+    }
+
+    private func formatButton(
+        _ title: String, _ kind: EditorFormat, key: KeyEquivalent,
+        modifiers: EventModifiers = .command
+    ) -> some View {
+        Button(title) { window?.format(kind) }
+            .keyboardShortcut(key, modifiers: modifiers)
+            .disabled(!canEdit)
     }
 }

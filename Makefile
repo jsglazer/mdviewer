@@ -8,12 +8,12 @@
 #   make editor-bundle rebuild the vendored CodeMirror bundle (needs Node; output is committed)
 #   make fuzz          build all libFuzzer targets in Fuzz/ (requires -sanitize=fuzzer)
 #
-# The repo builds two apps from one project — mdview (viewer) and mdedit (editor) — both
-# linking the local MarkdownRenderKit package. Override on the command line, e.g.:
-#   make build SCHEMES=mdedit CONFIG=Debug
+# The app links the local MarkdownRenderKit package. SCHEMES is explicit because the package
+# adds its own scheme, which auto-detection would pick. Override on the command line, e.g.:
+#   make build CONFIG=Debug
 
 PROJECT  ?= mdview/mdview.xcodeproj
-SCHEMES  ?= mdview mdedit
+SCHEMES  ?= mdview
 CONFIG   ?= Release
 DEST     ?= platform=macOS
 SWIFTSRC ?= $(shell find . -name '*.swift' -not -path '*/.build/*' -not -path '*/DerivedData/*' -not -path '*/.git/*' -not -path '*/node_modules/*')

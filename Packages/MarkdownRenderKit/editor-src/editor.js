@@ -1,4 +1,4 @@
-// mdedit editor — CodeMirror 6 inside a WKWebView.
+// mdview editor — CodeMirror 6 inside a WKWebView.
 //
 // Swift → JS (all on window):
 //   mdeditInit(text, options)      create the editor with fresh history
@@ -11,9 +11,14 @@
 //   mdeditUndo() / mdeditRedo()    history commands (the Edit menu routes here)
 //   mdeditOpenSearch()             open the search / replace panel
 //   mdeditFocus()
+//   mdeditTakePending()            if an edit is still inside the debounce window, cancel the
+//                                  timer and return the current text; otherwise return null.
+//                                  Swift calls it before every save so no keystroke is lost.
 //
 // JS → Swift (window.webkit.messageHandlers.mdedit):
 //   { type: "ready" }
+//   { type: "dirty" }              sent at once on the first user edit of a burst, before the
+//                                  debounced "change", so the document is marked edited at once
 //   { type: "change", text }       debounced ~100 ms; never sent for mdeditSetText/mdeditInit
 //   { type: "scroll", line }       fractional 0-based source line at the top of the viewport
 //   { type: "cursor", line }       0-based line of the main cursor
@@ -101,7 +106,84 @@ const baseTheme = EditorView.theme({
   ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: "var(--search-active-bg)" },
   ".cm-panels": { backgroundColor: "var(--panel-bg)", color: "var(--fg)" },
   ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--border)" },
-  ".cm-panel.cm-search input, .cm-panel.cm-search button": { fontSize: "12px" },
+  // Search / replace panel, restyled to sit like a native macOS find bar: system
+  // font, compact rounded fields and buttons, aligned checkboxes.
+  ".cm-panel.cm-search": {
+    padding: "6px 36px 6px 10px",
+    fontFamily: "-apple-system, system-ui, sans-serif",
+    fontSize: "12px",
+    lineHeight: "1",
+  },
+  ".cm-panel.cm-search input, .cm-panel.cm-search button, .cm-panel.cm-search label": {
+    margin: "3px 6px 3px 0",
+    verticalAlign: "middle",
+  },
+  ".cm-panel.cm-search .cm-textfield": {
+    fontFamily: "inherit",
+    fontSize: "12px",
+    width: "15em",
+    padding: "3px 8px",
+    color: "var(--fg)",
+    backgroundColor: "var(--field-bg)",
+    border: "1px solid var(--field-border)",
+    borderRadius: "6px",
+    outline: "none",
+  },
+  ".cm-panel.cm-search .cm-textfield:focus": {
+    borderColor: "var(--accent)",
+    boxShadow: "0 0 0 3px var(--focus-ring)",
+  },
+  ".cm-panel.cm-search .cm-button": {
+    fontFamily: "inherit",
+    fontSize: "12px",
+    padding: "3px 10px",
+    color: "var(--fg)",
+    backgroundImage: "none",
+    backgroundColor: "var(--button-bg)",
+    border: "1px solid var(--field-border)",
+    borderRadius: "6px",
+    boxShadow: "0 0.5px 1px rgba(0, 0, 0, 0.12)",
+  },
+  ".cm-panel.cm-search .cm-button:active": {
+    backgroundImage: "none",
+    backgroundColor: "var(--button-active)",
+  },
+  ".cm-panel.cm-search label": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
+    fontSize: "12px",
+    color: "var(--fg)",
+  },
+  ".cm-panel.cm-search input[type=checkbox]": { margin: "0", accentColor: "var(--accent)" },
+  ".cm-panel.cm-search [name=close]": {
+    top: "6px",
+    right: "10px",
+    width: "20px",
+    height: "20px",
+    lineHeight: "18px",
+    fontSize: "16px",
+    textAlign: "center",
+    color: "var(--gutter-fg)",
+    borderRadius: "4px",
+    cursor: "default",
+  },
+  ".cm-panel.cm-search [name=close]:hover": { backgroundColor: "var(--button-active)" },
+});
+
+// Capitalised, macOS-style labels for the search panel (CodeMirror's are lowercase).
+const searchPhrases = EditorState.phrases.of({
+  "Find": "Find",
+  "Replace": "Replace",
+  "next": "Next",
+  "previous": "Previous",
+  "all": "All",
+  "match case": "Match Case",
+  "regexp": "Regex",
+  "by word": "Whole Word",
+  "replace": "Replace",
+  "replace all": "Replace All",
+  "close": "Close",
 });
 
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -248,7 +330,11 @@ function reportScroll() {
 
 const bridge = EditorView.updateListener.of((update) => {
   if (update.docChanged && !update.transactions.some((tr) => tr.annotation(fromSwift))) {
-    if (changeTimer) clearTimeout(changeTimer);
+    if (changeTimer) {
+      clearTimeout(changeTimer);
+    } else {
+      post({ type: "dirty" });
+    }
     changeTimer = setTimeout(flushChange, CHANGE_DEBOUNCE_MS);
   }
   if (update.selectionSet || update.docChanged) {
@@ -288,6 +374,7 @@ function extensions(options) {
     wrapCompartment.of(options.lineWrapping === false ? [] : EditorView.lineWrapping),
     darkCompartment.of(EditorView.darkTheme.of(darkQuery.matches)),
     baseTheme,
+    searchPhrases,
     bridge,
   ];
 }
@@ -381,6 +468,12 @@ window.mdeditRedo = function () { if (view) redo(view); };
 window.mdeditOpenSearch = function () { if (view) { openSearchPanel(view); } };
 window.mdeditFocus = function () { if (view) view.focus(); };
 window.mdeditFlush = flushChange;
+window.mdeditTakePending = function () {
+  if (!changeTimer) return null;
+  clearTimeout(changeTimer);
+  changeTimer = null;
+  return view ? view.state.doc.toString() : null;
+};
 
 darkQuery.addEventListener("change", (e) => {
   if (view) view.dispatch({ effects: darkCompartment.reconfigure(EditorView.darkTheme.of(e.matches)) });

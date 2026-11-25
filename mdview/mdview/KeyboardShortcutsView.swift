@@ -24,6 +24,27 @@ struct KeyboardShortcutsView: View {
                 Row(key: "⌘ →", desc: "Page down"),
             ]),
         Section(
+            title: "Layout",
+            rows: [
+                Row(key: "⌘ 1", desc: "Edit"),
+                Row(key: "⌘ 2", desc: "Split (editor + preview)"),
+                Row(key: "⌘ 3", desc: "Preview"),
+            ]),
+        Section(
+            title: "Editing",
+            rows: [
+                Row(key: "⌘ S", desc: "Save"),
+                Row(key: "⌘ N", desc: "New document"),
+                Row(key: "⌘ Z", desc: "Undo"),
+                Row(key: "⌘ ⇧ Z", desc: "Redo"),
+                Row(key: "⌘ B", desc: "Bold"),
+                Row(key: "⌘ I", desc: "Italic"),
+                Row(key: "⌘ K", desc: "Link"),
+                Row(key: "⌘ ⇧ H", desc: "Highlight (==text==)"),
+                Row(key: "⌘ /", desc: "Toggle comment"),
+                Row(key: "⌘ ⌥ ⇧ L", desc: "Toggle Editor Line Numbers"),
+            ]),
+        Section(
             title: "Scroll Mode",
             rows: [
                 Row(key: "⌘ J", desc: "Toggle Jump to New Content"),
@@ -32,7 +53,7 @@ struct KeyboardShortcutsView: View {
         Section(
             title: "View",
             rows: [
-                Row(key: "⌘ ⇧ L", desc: "Toggle Line Numbers"),
+                Row(key: "⌘ ⇧ L", desc: "Toggle Preview Line Numbers"),
                 Row(key: "⌘ ⇧ O", desc: "Toggle Outline panel"),
                 Row(key: "⌘ ⇧ C", desc: "Show Document CSS"),
                 Row(key: "⌘ +", desc: "Zoom In"),
@@ -49,7 +70,8 @@ struct KeyboardShortcutsView: View {
         Section(
             title: "Find",
             rows: [
-                Row(key: "⌘ F", desc: "Open Find"),
+                Row(key: "⌘ F", desc: "Find (search & replace in the editor when it has focus)"),
+                Row(key: "⌘ ⌥ F", desc: "Find in Preview"),
                 Row(key: "↩", desc: "Jump to first result"),
                 Row(key: "Esc", desc: "Close Find"),
             ]),
@@ -109,7 +131,7 @@ final class ShortcutsPanelController {
         if panel == nil {
             let newPanel = UtilityPanel.make(
                 title: "Keyboard Shortcuts",
-                size: NSSize(width: 360, height: 540),
+                size: NSSize(width: 400, height: 640),
                 minSize: NSSize(width: 300, height: 300)
             )
             newPanel.contentView = NSHostingView(rootView: KeyboardShortcutsView())

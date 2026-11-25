@@ -1,8 +1,8 @@
 {
-  "name": "mdedit-editor",
+  "name": "mdview-editor",
   "private": true,
   "version": "0.1.0",
-  "description": "CodeMirror 6 bundle for mdedit. Build output is committed to Sources/MarkdownRenderKit/Resources/codemirror-editor.min.js; Xcode never runs npm.",
+  "description": "CodeMirror 6 bundle for the mdview editor. Build output is committed to Sources/MarkdownRenderKit/Resources/codemirror-editor.min.js; Xcode never runs npm.",
   "scripts": {
     "build": "esbuild editor.js --bundle --minify --format=iife --target=safari17 --legal-comments=none --outfile=../Sources/MarkdownRenderKit/Resources/codemirror-editor.min.js"
   },

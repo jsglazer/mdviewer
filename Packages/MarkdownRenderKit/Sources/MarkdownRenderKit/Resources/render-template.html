@@ -477,57 +477,45 @@ md.core.ruler.push('source_map', function(state) {
   });
 });
 
-// KaTeX math as a token-level rule. Operates only on `text` children of inline
-// tokens, so math inside code spans / fenced blocks (which are code_inline /
-// fence tokens, never text) is left verbatim. Delimiters must hug their content
-// (no inner leading/trailing space) so prose like "$5 to $10" is not matched.
-const _mathRe = /\$\$(?!\s)((?:[^$]|\$(?!\$))+?)(?<!\s)\$\$|\$(?!\s)((?:[^$\\]|\\.)+?)(?<!\s)\$/g;
+// KaTeX math as an inline-parser rule. It runs when the inline tokenizer reaches a
+// `$`, so it sees the raw source: backslash escapes inside math (`\,` `\;` `\{` `\_`
+// …) are never consumed by markdown-it's escape rule first. Code spans are parsed
+// by the backtick rule before their `$` is ever reached, fenced blocks never go
+// through the inline parser, and math may not contain a backtick (so a `$` before a
+// code span can't pair with one inside it): math inside code stays literal. Inline
+// `$…$` must hug its content (no inner leading/trailing space), so prose like
+// "$5 to $10" is not matched. Display `$$…$$` may span lines, as in a block with the
+// delimiters on their own lines. An escaped `\$` is a literal dollar sign.
+const _mathDisplayRe = /\$\$((?:[^$`]|\$(?!\$))+?)\$\$/y;
+const _mathInlineRe = /\$(?!\s)((?:[^$`\\]|\\[^`])+?)(?<!\s)\$/y;
 
-function _mathTokens(content, Token) {
-  _mathRe.lastIndex = 0;
-  let parts = null, last = 0, m;
-  while ((m = _mathRe.exec(content)) !== null) {
-    const isDisplay = m[1] !== undefined;
-    const tex = (isDisplay ? m[1] : m[2]).trim();
-    let html;
-    try { html = katex.renderToString(tex, { displayMode: isDisplay, throwOnError: false }); }
-    catch (e) { continue; }   // leave malformed math as literal text
-    parts = parts || [];
-    if (m.index > last) {
-      const t = new Token('text', '', 0);
-      t.content = content.slice(last, m.index);
-      parts.push(t);
-    }
-    const h = new Token('html_inline', '', 0);
-    h.content = html;
-    parts.push(h);
-    last = m.index + m[0].length;
+function _tokenizeMath(state, silent) {
+  if (state.src.charCodeAt(state.pos) !== 0x24 /* $ */) return false;
+  const isDisplay = state.src.charCodeAt(state.pos + 1) === 0x24;
+  const re = isDisplay ? _mathDisplayRe : _mathInlineRe;
+  re.lastIndex = state.pos;
+  const m = re.exec(state.src);
+  if (!m || m.index + m[0].length > state.posMax || !m[1].trim()) return false;
+  if (!silent) {
+    const token = state.push(isDisplay ? 'math_display' : 'math_inline', 'math', 0);
+    token.content = m[1].trim();
+    token.markup = isDisplay ? '$$' : '$';
   }
-  if (!parts) return null;
-  if (last < content.length) {
-    const t = new Token('text', '', 0);
-    t.content = content.slice(last);
-    parts.push(t);
-  }
-  return parts;
+  state.pos += m[0].length;
+  return true;
 }
 
-// Registered at the END of the core chain (push), i.e. AFTER `text_join`. The
-// inline parser splits a text run on escape sequences (`\pi`, `\frac`, …) and
-// `text_join` re-merges those fragments; running before it would leave `$…$`
-// straddling fragment boundaries, so backslash-containing math never matched.
-md.core.ruler.push('katex_math', function(state) {
-  const Token = state.Token;
-  state.tokens.forEach(function(blockTok) {
-    if (blockTok.type !== 'inline' || !blockTok.children) return;
-    const children = blockTok.children;
-    for (let i = 0; i < children.length; i++) {
-      if (children[i].type !== 'text') continue;
-      const replaced = _mathTokens(children[i].content, Token);
-      if (replaced) { children.splice(i, 1, ...replaced); i += replaced.length - 1; }
-    }
-  });
-});
+function _renderMath(tex, displayMode) {
+  try { return katex.renderToString(tex, { displayMode, throwOnError: false }); }
+  catch (e) {   // leave malformed math as literal text
+    const d = displayMode ? '$$' : '$';
+    return md.utils.escapeHtml(d + tex + d);
+  }
+}
+
+md.inline.ruler.before('escape', 'math', _tokenizeMath);
+md.renderer.rules.math_inline = function(tokens, idx) { return _renderMath(tokens[idx].content, false); };
+md.renderer.rules.math_display = function(tokens, idx) { return _renderMath(tokens[idx].content, true); };
 
 // Heading ID generation — reset per render
 let _headingIdCount = {};
@@ -680,7 +668,10 @@ window.scrollToNewContent = function(line) {
 window.scrollToBottom = function() {
   const content = document.getElementById('content');
   const last = content ? content.lastElementChild : null;
-  if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Centre a short last block; a tall one (a long list being appended to) is
+  // scrolled to its end, or the newest lines would sit below the window.
+  const tall = last && last.getBoundingClientRect().height > window.innerHeight / 2;
+  if (last) last.scrollIntoView({ behavior: 'smooth', block: tall ? 'end' : 'center' });
   else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 };
 
@@ -920,7 +911,7 @@ window.contentHeight = function() {
   return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
 };
 
-// ── Source-line scroll sync (mdedit) ────────────────────────────────────────
+// ── Source-line scroll sync (editor) ────────────────────────────────────────
 // Maps between the viewport top and a fractional 0-based source line using the
 // data-md-line stamps on top-level blocks, interpolating between neighbouring
 // blocks. Scroll positions are only posted when the host registered a

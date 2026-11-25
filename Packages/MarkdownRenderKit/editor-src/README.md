@@ -1,6 +1,6 @@
-# mdedit editor bundle
+# mdview editor bundle
 
-`editor.js` is the CodeMirror 6 entry point that mdedit's editor pane loads (`Resources/editor.html`). It is bundled into one minified file, `../Sources/MarkdownRenderKit/Resources/codemirror-editor.min.js`, which is committed, so building the apps never needs Node.
+`editor.js` is the CodeMirror 6 entry point that mdview's editor pane loads (`Resources/editor.html`). It is bundled into one minified file, `../Sources/MarkdownRenderKit/Resources/codemirror-editor.min.js`, which is committed, so building the app never needs Node.
 
 To rebuild after changing `editor.js` or bumping a pinned version in `package.json`:
 

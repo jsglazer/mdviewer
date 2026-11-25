@@ -14,7 +14,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         documentController = RecentLimitDocumentController()
+        SaveFlush.install()
     }
+
+    // mdview is opened on files; launching it on its own shows the Open panel rather
+    // than an empty untitled document (File ▸ New makes one on request).
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { false }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NotificationCenter.default.addObserver(

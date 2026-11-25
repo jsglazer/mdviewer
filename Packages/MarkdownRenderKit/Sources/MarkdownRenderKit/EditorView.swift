@@ -46,11 +46,18 @@ public final class EditorController: NSObject {
     public var onScroll: (Double) -> Void = { _ in }
     /// Called with the 0-based line of the main cursor.
     public var onCursorLine: (Int) -> Void = { _ in }
+    /// Called at once on the first user edit after a quiet period, before the debounced
+    /// `onTextChange`, so the owner can mark its document edited without waiting.
+    public var onDirty: () -> Void = {}
 
     public let webView: WKWebView
     /// The text both sides agree on: the last text received from the page or sent to it.
     public private(set) var text: String = ""
+    /// True from the first keystroke of a burst until its text has reached Swift.
+    public private(set) var hasPendingEdit = false
     private var isReady = false
+    /// A focus request that arrived before the page loaded or the view joined a window.
+    private var wantsFocus = false
     private var options: EditorOptions
 
     public init(options: EditorOptions) {
@@ -113,13 +120,43 @@ public final class EditorController: NSObject {
         run("window.mdeditOpenSearch()")
     }
 
+    /// Gives the editor keyboard focus. Asked for before the editor is ready (it was
+    /// just created and hasn't loaded or joined a window yet), it happens once it is.
     public func focus() {
-        webView.window?.makeFirstResponder(webView)
+        guard isReady, let window = webView.window else {
+            wantsFocus = true
+            return
+        }
+        wantsFocus = false
+        window.makeFirstResponder(webView)
         run("window.mdeditFocus()")
     }
 
     /// Pushes any edit still inside the page's debounce window to `onTextChange` now.
     public func flushPendingEdits() { run("window.mdeditFlush && window.mdeditFlush()") }
+
+    /// Delivers any edit still inside the page's debounce window through `onTextChange`,
+    /// then calls `completion` on the main thread. Waits for the real round trip, so
+    /// a save that runs after `completion` always sees the editor's latest text.
+    public func flushPendingEdits(completion: @escaping () -> Void) {
+        guard isReady else { completion(); return }
+        webView.evaluateJavaScript("window.mdeditTakePending()") { [weak self] result, _ in
+            if let self {
+                self.hasPendingEdit = false
+                if let newText = result as? String, newText != self.text {
+                    self.text = newText
+                    self.onTextChange(newText)
+                }
+            }
+            completion()
+        }
+    }
+
+    /// True when the editor WebView (or something inside it) has keyboard focus.
+    public var hasFocus: Bool {
+        guard let responder = webView.window?.firstResponder as? NSView else { return false }
+        return responder === webView || responder.isDescendant(of: webView)
+    }
 
     private func run(_ script: String) {
         guard isReady else { return }
@@ -133,12 +170,12 @@ public final class EditorController: NSObject {
         else { return }
         switch type {
         case "ready":
-            isReady = true
-            load(text: text)
+            pageBecameReady()
+        case "dirty":
+            hasPendingEdit = true
+            onDirty()
         case "change":
-            guard let newText = body["text"] as? String, newText != text else { return }
-            text = newText
-            onTextChange(newText)
+            receiveChange(body["text"] as? String)
         case "scroll":
             if let line = (body["line"] as? NSNumber)?.doubleValue { onScroll(line) }
         case "cursor":
@@ -146,6 +183,19 @@ public final class EditorController: NSObject {
         default:
             break
         }
+    }
+
+    private func pageBecameReady() {
+        isReady = true
+        load(text: text)
+        if wantsFocus { DispatchQueue.main.async { [weak self] in self?.focus() } }
+    }
+
+    private func receiveChange(_ newText: String?) {
+        hasPendingEdit = false
+        guard let newText, newText != text else { return }
+        text = newText
+        onTextChange(newText)
     }
 
     private static func jsString(_ value: String) -> String? {
@@ -181,6 +231,18 @@ private final class WeakEditorHandler: NSObject, WKScriptMessageHandler {
 /// focus, so the app's menus (whose Undo would otherwise act on the document's
 /// whole-text undo stack) never see them.
 private final class EditorWebView: WKWebView {
+    /// WebKit registers an undo step for every native text edit (the editor's own
+    /// contenteditable, the search panel's fields) on the responder chain's undo
+    /// manager — in a document window, the document's. That marked the document
+    /// edited when the user merely typed a search term. CodeMirror keeps its own
+    /// history, so WebKit's steps go to a private manager that records nothing.
+    private let privateUndoManager: UndoManager = {
+        let manager = UndoManager()
+        manager.disableUndoRegistration()
+        return manager
+    }()
+    override var undoManager: UndoManager? { privateUndoManager }
+
     private static let commands: [String: String] = [
         "z": "window.mdeditUndo()",
         "Z": "window.mdeditRedo()",

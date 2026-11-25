@@ -11,7 +11,7 @@ final class SettingsPanelController {
         if panel == nil {
             let newPanel = UtilityPanel.make(
                 title: "Settings",
-                size: NSSize(width: 480, height: 500),
+                size: NSSize(width: 480, height: 680),
                 minSize: NSSize(width: 380, height: 300)
             )
             newPanel.contentView = NSHostingView(rootView: SettingsView())

@@ -1,13 +1,23 @@
 import MarkdownRenderKit
 import SwiftUI
 
+/// One document window: the rendered preview (mdview's viewer), plus — once the
+/// window leaves the Preview layout — a CodeMirror editor beside or instead of it.
 struct ContentView: View {
-    let document: mdviewDocument
+    @Binding var document: mdviewDocument
     let fileURL: URL?
 
     @AppStorage("customCSS") private var customCSS: String = ""
+    @AppStorage(EditorSettings.Key.fontFamily) private var fontFamily = EditorSettings
+        .defaultFontFamily
+    @AppStorage(EditorSettings.Key.fontSize) private var fontSize = EditorSettings.defaultFontSize
+    @AppStorage(EditorSettings.Key.lineNumbers) private var editorLineNumbers = false
+    @AppStorage(EditorSettings.Key.lineWrapping) private var lineWrapping = true
+    @AppStorage(EditorSettings.Key.splitFraction) private var splitFraction = 0.5
+    @State private var model: DocumentWindowModel
+    /// The Markdown the preview renders (image paths rewritten). Follows the document
+    /// at once while viewing, and 150 ms after the last keystroke while editing.
     @State private var text: String = ""
-    @State private var watcher: FileWatcher?
     @State private var autoScrollMode: AutoScrollMode = .none
     @State private var showTOC: Bool = false
     @State private var showFind: Bool = false
@@ -17,12 +27,30 @@ struct ContentView: View {
     @State private var currentFindIndex: Int?
     @State private var tocItems: [TOCItem] = []
     @State private var activeHeadingChain: [String] = []
-    @State private var markdownController = MarkdownController()
     @State private var hostWindow: NSWindow?
     @FocusState private var findFocused: Bool
 
+    /// Pause after the last edit before the preview re-renders.
+    private static let previewDebounce = Duration.milliseconds(150)
+
+    init(document: Binding<mdviewDocument>, fileURL: URL?) {
+        _document = document
+        self.fileURL = fileURL
+        _model = State(initialValue: DocumentWindowModel(fileURL: fileURL))
+    }
+
+    private var markdownController: MarkdownController { model.preview }
+    private var baseDir: URL? { fileURL?.deletingLastPathComponent() }
+
+    private var editorOptions: EditorOptions {
+        EditorOptions(
+            lineNumbers: editorLineNumbers, lineWrapping: lineWrapping, fontFamily: fontFamily,
+            fontSize: fontSize)
+    }
+
     var body: some View {
-        receivingViewCommands(receivingFindCommands(mainContent))
+        receivingDocumentChanges(receivingViewCommands(receivingFindCommands(mainContent)))
+            .focusedSceneValue(\.documentWindow, model)
     }
 
     private var mainContent: some View {
@@ -37,41 +65,112 @@ struct ContentView: View {
                     .frame(width: 210)
                     Divider()
                 }
-                MarkdownView(
-                    markdown: text,
-                    controller: markdownController,
-                    autoScrollMode: autoScrollMode,
-                    customCSS: customCSS,
-                    showLineNumbers: showLineNumbers,
-                    baseDir: fileURL?.deletingLastPathComponent(),
-                    onHeadingsUpdated: { tocItems = $0 },
-                    onActiveHeadingsChanged: { activeHeadingChain = $0 }
-                )
+                panes
                 if showTOC {
                     Divider()
                     TOCView(
                         items: tocItems, activeChain: activeHeadingChain,
-                        onSelect: { markdownController.scrollToHeading(id: $0) }
+                        onSelect: { model.selectHeading($0) }
                     )
                     .frame(width: 220)
                 }
             }
         }
         .frame(minWidth: 520, minHeight: 320)
-        .background(WindowFrameSaver { hostWindow = $0 })
-        .onAppear {
-            text = process(document.text)
-            if let url = fileURL {
-                watcher = FileWatcher(url: url) { updated in
-                    text = process(updated)
-                }
+        .background(
+            WindowFrameSaver {
+                hostWindow = $0
+                model.window = $0
             }
-        }
-        .onDisappear { watcher = nil }
+        )
+        .onAppear(perform: start)
+        .onDisappear { model.close() }
         .onChange(of: text) { _, _ in
             // Marks are cleared when innerHTML is replaced; clear results to match
             if showFind { findResults = []; currentFindIndex = nil }
         }
+    }
+
+    private func start() {
+        model.onEditorText = { document.text = $0 }
+        model.documentText = { document.text }
+        // A window that opens on the editor (a new document, or a file last left in
+        // Edit / Split) puts the cursor there, ready to type.
+        if model.layout.showsEditor { model.makeEditorIfNeeded().focus() }
+        text = process(document.text)
+    }
+
+    /// The document changing (typing, revert, a reload after the file changed on disk)
+    /// and the window's own settings changing.
+    private func receivingDocumentChanges(_ content: some View) -> some View {
+        content
+            .onChange(of: document.text) { _, newText in
+                // Text that didn't come from the editor is pushed into it.
+                model.documentTextChanged(newText)
+            }
+            .task(id: document.text) {
+                // Viewing renders at once (live reload, Tail Mode); while editing, the
+                // preview waits for a pause in typing.
+                if model.layout.showsEditor {
+                    try? await Task.sleep(for: Self.previewDebounce)
+                    guard !Task.isCancelled else { return }
+                }
+                text = process(document.text)
+            }
+            .onChange(of: editorOptions) { _, options in model.editor?.setOptions(options) }
+            .onChange(of: fileURL) { _, url in model.fileURL = url }
+            .onChange(of: model.previewFindRequest) { _, _ in
+                showFind = true
+                findFocused = true
+            }
+    }
+
+    // MARK: - Panes
+
+    /// The editor (once created) and the preview stay in the view hierarchy in every
+    /// layout — a hidden pane is just collapsed to zero width — so the editor keeps
+    /// its undo history and the Outline keeps working from the preview while editing
+    /// full-width.
+    private var panes: some View {
+        GeometryReader { geo in
+            let total = geo.size.width
+            let editorWidth: CGFloat =
+                switch model.layout {
+                case .edit: total
+                case .preview: 0
+                case .split: (total * splitFraction).rounded()
+                }
+            HStack(spacing: 0) {
+                if let editor = model.editor {
+                    EditorView(controller: editor, isVisible: model.layout.showsEditor)
+                        .frame(width: editorWidth)
+                }
+                if model.layout == .split {
+                    SplitDivider(fraction: $splitFraction, totalWidth: total)
+                }
+                preview
+                    .frame(maxWidth: .infinity)
+                    .opacity(model.layout.showsPreview ? 1 : 0)
+            }
+        }
+    }
+
+    private var preview: some View {
+        MarkdownView(
+            markdown: text,
+            controller: markdownController,
+            autoScrollMode: autoScrollMode,
+            customCSS: customCSS,
+            showLineNumbers: showLineNumbers,
+            baseDir: baseDir,
+            onHeadingsUpdated: { tocItems = $0 },
+            onActiveHeadingsChanged: { activeHeadingChain = $0 },
+            onTopLineChanged: { model.previewScrolled(to: $0) },
+            keepsSourceLineOnRender: model.layout.showsEditor
+        )
+        // The image scheme handler is bound to the folder when the WebView is made, so
+        // a first save (Untitled → file) needs a fresh preview.
+        .id(baseDir)
     }
 
     /// Find, outline and auto-scroll menu commands. Split out of `body`: as one modifier chain
@@ -79,11 +178,13 @@ struct ContentView: View {
     private func receivingFindCommands(_ content: some View) -> some View {
         content
             .onReceive(NotificationCenter.default.publisher(for: .mdviewOpenFind)) { _ in
+                guard isFrontDocument else { return }
+                if !model.layout.showsPreview { model.layout = .split }
                 showFind = true
                 findFocused = true
             }
             .onReceive(NotificationCenter.default.publisher(for: .mdviewCloseFind)) { _ in
-                closeFind()
+                if isFrontDocument { closeFind() }
             }
             .onReceive(NotificationCenter.default.publisher(for: .mdviewToggleLineNumbers)) { _ in
                 showLineNumbers.toggle()
@@ -136,6 +237,15 @@ struct ContentView: View {
         ZStack {
             // Left + right anchored buttons
             HStack(spacing: 4) {
+                Picker("Layout", selection: $model.layout) {
+                    ForEach(EditorLayout.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .controlSize(.small)
+                .fixedSize()
+                .help("Edit ⌘1 · Split ⌘2 · Preview ⌘3")
+                .padding(.trailing, 4)
                 RibbonButton(icon: "arrow.clockwise", label: "Reload", isActive: false) {
                     reloadFile()
                 }
@@ -269,11 +379,18 @@ struct ContentView: View {
         markdownController.clearFind()
     }
 
+    /// Reload from disk. A document with unsaved edits asks first (AppKit's standard
+    /// "Revert to Saved" confirmation), so the button can never silently discard work.
     private func reloadFile() {
-        guard let url = fileURL,
-            let updated = try? String(contentsOf: url, encoding: .utf8)
+        guard let window = hostWindow,
+            let doc = NSDocumentController.shared.document(for: window),
+            let url = doc.fileURL, let type = doc.fileType
         else { return }
-        text = process(updated)
+        if doc.isDocumentEdited {
+            doc.revertToSaved(nil)
+        } else {
+            try? doc.revert(toContentsOf: url, ofType: type)
+        }
     }
 
     // Menu commands broadcast to every open document; only the frontmost one
@@ -287,8 +404,8 @@ struct ContentView: View {
     private func openPrintPreview(intent: PrintPreviewIntent) {
         PrintPreviewController.shared.show(
             source: PrintSource(
-                markdown: text,
-                baseDir: fileURL?.deletingLastPathComponent(),
+                markdown: process(model.currentText(fallback: document.text)),
+                baseDir: baseDir,
                 customCSS: customCSS,
                 showLineNumbers: showLineNumbers,
                 title: fileURL?.lastPathComponent ?? "Untitled"
@@ -371,6 +488,33 @@ private struct WindowFrameSaver: NSViewRepresentable {
     }
 }
 
-#Preview {
-    ContentView(document: mdviewDocument(), fileURL: nil)
+/// Draggable divider between the editor and preview in Split layout.
+private struct SplitDivider: View {
+    @Binding var fraction: Double
+    let totalWidth: CGFloat
+    @State private var startFraction: Double?
+
+    private static let range = 0.15...0.85
+
+    var body: some View {
+        Rectangle()
+            .fill(Color(NSColor.separatorColor))
+            .frame(width: 1)
+            .padding(.horizontal, 3)
+            .contentShape(Rectangle())
+            .onHover { inside in
+                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        let start = startFraction ?? fraction
+                        startFraction = start
+                        guard totalWidth > 0 else { return }
+                        let proposed = start + Double(value.translation.width / totalWidth)
+                        fraction = min(max(proposed, Self.range.lowerBound), Self.range.upperBound)
+                    }
+                    .onEnded { _ in startFraction = nil }
+            )
+    }
 }

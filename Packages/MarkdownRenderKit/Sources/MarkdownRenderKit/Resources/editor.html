@@ -19,6 +19,12 @@
     --search-bg: rgba(255, 213, 0, 0.35);
     --search-active-bg: rgba(255, 150, 0, 0.55);
     --panel-bg: #f6f8fa;
+    --field-bg: #ffffff;
+    --field-border: rgba(0, 0, 0, 0.18);
+    --button-bg: #ffffff;
+    --button-active: rgba(0, 0, 0, 0.08);
+    --accent: #0a84ff;
+    --focus-ring: rgba(10, 132, 255, 0.35);
     --md-heading: #0550ae;
     --md-link: #0969da;
     --md-code: #953800;
@@ -39,12 +45,23 @@
       --search-bg: rgba(187, 128, 9, 0.4);
       --search-active-bg: rgba(210, 153, 34, 0.7);
       --panel-bg: #161b22;
+      --field-bg: rgba(255, 255, 255, 0.06);
+      --field-border: rgba(255, 255, 255, 0.16);
+      --button-bg: rgba(255, 255, 255, 0.12);
+      --button-active: rgba(255, 255, 255, 0.2);
       --md-heading: #79c0ff;
       --md-link: #58a6ff;
       --md-code: #ffa657;
       --md-quote: #9198a1;
       --md-mark: #d2a8ff;
       --md-meta: #8b949e;
+    }
+  }
+  /* Follow the user's macOS accent colour where WebKit exposes it. */
+  @supports (color: AccentColor) {
+    :root {
+      --accent: AccentColor;
+      --focus-ring: color-mix(in srgb, AccentColor 35%, transparent);
     }
   }
   html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); overflow: hidden; }
